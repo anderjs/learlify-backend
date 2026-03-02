@@ -79,6 +79,7 @@
     "prettier": "^2.0.5",
     "rimraf": "2.6.3",
     "sinon": "^9.0.3",
+    "socket.io-client": "^4.8.3",
     "supertest": "^4.0.2"
   },
   "scripts": {
