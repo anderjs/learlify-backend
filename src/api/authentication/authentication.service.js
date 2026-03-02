@@ -29,7 +29,7 @@ class AuthenticationService {
   decrypt(payload) {
     const { provider } = this.configService
 
-    return jwt.verify(payload, provider.JWT_SECRET, (err, decode) => {
+    return jwt.verify(payload, provider.JWT_SECRET, { algorithms: ['HS256'] }, (err, decode) => {
       if (err) {
         this.logger.error(err)
 

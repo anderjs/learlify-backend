@@ -53,7 +53,7 @@ export class WebSockets {
         return next(new Error('unauthorized'))
       }
 
-      jwt.verify(token, config.JWT_SECRET, (err, decoded) => {
+      jwt.verify(token, config.JWT_SECRET, { algorithms: ['HS256'] }, (err, decoded) => {
         if (err) {
           return next(new Error('unauthorized'))
         }
