@@ -110,9 +110,9 @@ app.use(i18n.init)
  */
 const CronScheduler = new Scheduler({
   triggers: [
+    [UsersTasks, TASKS.users],
     [ScheduleTasks, TASKS.schedule],
     [PackagesTasks, TASKS.packages],
-    [UsersTasks, TASKS.users],
     [NotificationsTasks, TASKS.notifications]
   ]
 })
