@@ -13,7 +13,8 @@ const JsonWebTokenGuard = new Strategy(
   {
     secretOrKey: provider.JWT_SECRET,
     jwtFromRequest: extractor,
-    passReqToCallback: true
+    passReqToCallback: true,
+    algorithms: ['HS256']
   },
   async (req, payload, done) => {
     try {
