@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express'
 import { AuthenticationService } from './authentication.service'
 import { UsersService } from 'api/users/users.service'
 import { RolesService } from 'api/roles/roles.services'
@@ -15,10 +16,28 @@ import { sendgridConfig } from 'api/mails'
 import { Logger } from 'api/logger'
 import { Bind } from 'decorators'
 import moment from 'moment'
+import type {
+  SignUpBody,
+  SignInBody,
+  GoogleLoginBody,
+  FacebookLoginBody,
+  RefreshTokenBody,
+  ResetPasswordBody
+} from './authentication.types'
 
 export class AuthenticationController {
+  private logger = Logger.Service
+  private authService: AuthenticationService
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private configService: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private userService: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private rolesService: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private mailService: any
+
   constructor() {
-    this.logger = Logger.Service
     this.authService = new AuthenticationService()
     this.configService = new ConfigService()
     this.userService = new UsersService()
@@ -26,14 +45,9 @@ export class AuthenticationController {
     this.mailService = new MailService()
   }
 
-  /**
-   *
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async signUp(req, res) {
-    const sign = req.body
+  async signUp(req: Request, res: Response): Promise<Response> {
+    const sign = req.body as SignUpBody
 
     const isAvailable = await this.userService.getOne({
       email: sign.email
@@ -105,13 +119,9 @@ export class AuthenticationController {
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async signIn(req, res) {
-    const sign = req.body
+  async signIn(req: Request, res: Response): Promise<Response> {
+    const sign = req.body as SignInBody
 
     const user = await this.userService.getOne({
       allowPrivateData: true,
@@ -149,13 +159,9 @@ export class AuthenticationController {
     throw new BadRequestException(res.__('errors.Invalid password or username'))
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async googleLogin(req, res) {
-    const sign = req.body
+  async googleLogin(req: Request, res: Response): Promise<Response> {
+    const sign = req.body as GoogleLoginBody
 
     const isGoogleUser = await this.userService.getOne({
       email: sign.email,
@@ -216,17 +222,10 @@ export class AuthenticationController {
       })
     }
 
-    /**
-     * Generates a random password.
-     * Because user is not authenticated.
-     */
     const password = await this.authService.generateRandomPassword({
       useHash: true
     })
 
-    /**
-     * Getting role.
-     */
     const role = await this.rolesService.findOne({ name: Roles.User })
 
     const create = await this.userService.create({
@@ -276,13 +275,9 @@ export class AuthenticationController {
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async facebookLogin(req, res) {
-    const body = req.body
+  async facebookLogin(req: Request, res: Response): Promise<Response> {
+    const body = req.body as FacebookLoginBody
 
     const facebookUser = await this.userService.getOne({
       email: body.email,
@@ -343,17 +338,10 @@ export class AuthenticationController {
       })
     }
 
-    /**
-     * Generates a random password.
-     * Because user is not authenticated.
-     */
     const password = await this.authService.generateRandomPassword({
       useHash: true
     })
 
-    /**
-     * Getting role.
-     */
     const role = await this.rolesService.findOne({ name: Roles.User })
 
     const createdUser = await this.userService.create({
@@ -403,18 +391,10 @@ export class AuthenticationController {
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async verification(req, res) {
-    const code = req.query.code
+  async verification(req: Request, res: Response): Promise<Response> {
+    const code = req.query.code as string
 
-    /**
-     * The token is being destructured for two reasons.
-     * Once the account is created is being sended with email and id of the user.
-     */
     const { email, error } = this.authService.decrypt(code)
 
     this.logger.info('decode', {
@@ -453,17 +433,10 @@ export class AuthenticationController {
     throw new NotFoundException(res.__('errors.The account cannot be verified'))
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async forgot(req, res) {
-    const email = req.query.email
+  async forgot(req: Request, res: Response): Promise<Response> {
+    const email = req.query.email as string
 
-    /**
-     * Checking if the user exist.
-     */
     const available = await this.userService.getOne({
       email
     })
@@ -473,11 +446,6 @@ export class AuthenticationController {
         email
       })
 
-      /**
-       * @description
-       * This token will be sended to the mail.
-       * Will last 24 hours.
-       */
       const token = this.authService.encrypt(
         { email: user.email, id: user.id },
         {
@@ -534,21 +502,15 @@ export class AuthenticationController {
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async refreshToken(req, res) {
-    const { id, error } = this.authService.decrypt(req.body.token)
+  async refreshToken(req: Request, res: Response): Promise<Response> {
+    const { token: rawToken } = req.body as RefreshTokenBody
+    const { id, error } = this.authService.decrypt(rawToken)
 
-    /**
-     * If token throws an error, forbidden exception should be dispatch.
-     */
     if (error) {
       this.logger.error('Error: Token is not valid.')
 
-      throw new ForbiddenException()
+      throw new ForbiddenException('')
     }
 
     const user = await this.userService.getOne({ id })
@@ -567,10 +529,10 @@ export class AuthenticationController {
   }
 
   @Bind
-  async resetPassword(req, res) {
-    const { code, password } = req.body
+  async resetPassword(req: Request, res: Response): Promise<Response> {
+    const { code, password } = req.body as ResetPasswordBody
 
-    const decrypt = await this.authService.decrypt(code)
+    const decrypt = this.authService.decrypt(code)
 
     if (decrypt.error) {
       throw new BadRequestException(
@@ -596,14 +558,12 @@ export class AuthenticationController {
         statusCode: 201
       })
     }
+
+    throw new NotFoundException(res.__('errors.User Not Found'))
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
   @Bind
-  async demoUser(req, res) {
+  async demoUser(req: Request, res: Response): Promise<Response> {
     const user = await this.userService.getOne({
       allowPrivateData: true,
       email: 'aptisgo@noreply'
@@ -630,8 +590,8 @@ export class AuthenticationController {
   }
 
   @Bind
-  async logout(req, res) {
-    const authHeader = req.headers['authorization'] || ''
+  async logout(req: Request, res: Response): Promise<Response> {
+    const authHeader = req.headers['authorization'] ?? ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
 
     if (token) {

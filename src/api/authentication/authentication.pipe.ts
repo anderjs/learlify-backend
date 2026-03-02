@@ -1,51 +1,41 @@
-import { checkSchema } from 'express-validator'
+import { checkSchema, ValidationChain } from 'express-validator'
 import { ConfigService } from 'api/config/config.service'
 
 class Auth {
-  /**
-   * @param {{ schemas?: []}}
-   */
+  private configService: ConfigService
+
   constructor() {
     this.configService = new ConfigService()
   }
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  get signUp() {
+
+  get signUp(): ValidationChain[] {
     const { nameOptions } = this.configService
 
     return checkSchema({
       email: {
         in: 'body',
         isEmail: true,
-        isLength: nameOptions
+        isLength: { options: nameOptions }
       },
       firstName: {
         in: 'body',
         isString: true,
-        isLength: nameOptions
+        isLength: { options: nameOptions }
       },
       lastName: {
         in: 'body',
         isString: true,
-        isLength: nameOptions
+        isLength: { options: nameOptions }
       },
       password: {
         in: 'body',
         isString: true,
-        isLength: nameOptions
+        isLength: { options: nameOptions }
       }
     })
   }
 
-  /**
-   *
-   * @param {Request} req
-   * @param {Response} res
-   * @param {NextFunction} next
-   */
-  get signIn() {
+  get signIn(): ValidationChain[] {
     const { passwordOptions } = this.configService
 
     return checkSchema({
@@ -58,17 +48,12 @@ class Auth {
         in: 'body',
         errorMessage: 'Password is required',
         isString: true,
-        isLength: passwordOptions
+        isLength: { options: passwordOptions }
       }
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} _res
-   * @param {Function} next
-   */
-  get googleLogin() {
+  get googleLogin(): ValidationChain[] {
     const { nameOptions } = this.configService
 
     return checkSchema({
@@ -76,13 +61,13 @@ class Auth {
         in: 'body',
         errorMessage: 'givenName is required',
         isString: true,
-        isLength: nameOptions
+        isLength: { options: nameOptions }
       },
       familyName: {
         in: 'body',
         errorMessage: 'familyName is required',
         isString: true,
-        isLength: nameOptions,
+        isLength: { options: nameOptions },
         optional: true
       },
       googleId: {
@@ -99,12 +84,7 @@ class Auth {
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} _res
-   * @param {Function} next
-   */
-  get facebookLogin() {
+  get facebookLogin(): ValidationChain[] {
     const { nameOptions } = this.configService
 
     return checkSchema({
@@ -112,13 +92,13 @@ class Auth {
         in: 'body',
         errorMessage: 'givenName is required',
         isString: true,
-        isLength: nameOptions
+        isLength: { options: nameOptions }
       },
       familyName: {
         in: 'body',
         errorMessage: 'familyName is required',
         isString: true,
-        isLength: nameOptions,
+        isLength: { options: nameOptions },
         optional: true
       },
       facebookId: {
@@ -135,7 +115,7 @@ class Auth {
     })
   }
 
-  get verifiy() {
+  get verifiy(): ValidationChain[] {
     return checkSchema({
       code: {
         in: 'query',
@@ -145,13 +125,7 @@ class Auth {
     })
   }
 
-  /**
-   *
-   * @param {Request} req
-   * @param {Response} res
-   * @param {NextFunction} next
-   */
-  get forgot() {
+  get forgot(): ValidationChain[] {
     return checkSchema({
       email: {
         in: 'query',
@@ -161,7 +135,7 @@ class Auth {
     })
   }
 
-  get refresh() {
+  get refresh(): ValidationChain[] {
     return checkSchema({
       token: {
         in: 'body',
@@ -171,8 +145,7 @@ class Auth {
     })
   }
 
-
-  get reset () {
+  get reset(): ValidationChain[] {
     const { passwordOptions } = this.configService
 
     return checkSchema({
@@ -184,10 +157,10 @@ class Auth {
         in: 'body',
         errorMessage: 'Password is required',
         isString: true,
-        isLength: passwordOptions
+        isLength: { options: passwordOptions }
       }
     })
   }
 }
 
-export const pipe = new Auth({})
+export const pipe = new Auth()

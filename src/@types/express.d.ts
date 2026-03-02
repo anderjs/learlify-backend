@@ -20,6 +20,10 @@ declare global {
       requestId?: string
       locale?: string
     }
+
+    interface Response {
+      __: (phrase: string, replacements?: Record<string, unknown>) => string
+    }
   }
 }
 

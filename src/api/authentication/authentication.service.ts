@@ -1,11 +1,23 @@
 import { ConfigService } from 'api/config/config.service'
+import { Logger } from 'api/logger'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import generator from 'generate-password'
 import { Injectable } from 'decorators'
+import type { EncryptConfig, DecryptResult, RandomPasswordResult } from './authentication.types'
+
+type EncryptPayload = Record<string, unknown> & {
+  password?: unknown
+  stripeCustomerId?: unknown
+  googleId?: unknown
+  facebookId?: unknown
+}
 
 @Injectable
 class AuthenticationService {
+  private configService: ConfigService
+  private logger = Logger.Service
+
   constructor() {
     this.configService = new ConfigService()
     this.decrypt = this.decrypt.bind(this)
@@ -13,47 +25,34 @@ class AuthenticationService {
     this.hash = this.hash.bind(this)
   }
 
-  /**
-   * @param {string} value
-   * @param {string} hash
-   * @returns {Promise<boolean>}
-   */
-  async compareHash(value, hash) {
+  async compareHash(value: string, hash: string): Promise<boolean> {
     return bcrypt.compare(value, hash)
   }
 
-  /**
-   * @param {{}} payload
-   * @returns {{}}
-   */
-  decrypt(payload) {
+  decrypt(payload: string): DecryptResult {
     const { provider } = this.configService
 
-    return jwt.verify(payload, provider.JWT_SECRET, { algorithms: ['HS256'] }, (err, decode) => {
-      if (err) {
-        this.logger.error(err)
-
-        return {
-          error: true,
-          details: err
+    return jwt.verify(
+      payload,
+      provider.JWT_SECRET,
+      { algorithms: ['HS256'] },
+      (err: Error | null, decode: jwt.JwtPayload | string | undefined) => {
+        if (err) {
+          this.logger.error(err)
+          return { error: true as const, details: err }
         }
+        return decode
       }
-      return decode
-    })
+    ) as unknown as DecryptResult
   }
 
-  /**
-   * @param {{}} payload
-   * @param {{ clientConfig?: boolean, encryptOptions?: {} }}
-   * @returns {string}
-   */
   encrypt(
-    payload,
-    { clientConfig, encryptOptions } = {
+    payload: EncryptPayload,
+    { clientConfig, encryptOptions }: EncryptConfig = {
       clientConfig: null,
       encryptOptions: null
     }
-  ) {
+  ): string {
     const { provider } = this.configService
 
     if (clientConfig) {
@@ -63,7 +62,7 @@ class AuthenticationService {
       delete payload.facebookId
 
       return jwt.sign(payload, provider.JWT_SECRET, {
-        expiresIn: provider.JWT_EXPIRATION
+        expiresIn: provider.JWT_EXPIRATION as jwt.SignOptions['expiresIn']
       })
     }
 
@@ -72,14 +71,15 @@ class AuthenticationService {
     }
 
     return jwt.sign(payload, provider.JWT_SECRET, {
-      expiresIn: provider.JWT_EXPIRATION
+      expiresIn: provider.JWT_EXPIRATION as jwt.SignOptions['expiresIn']
     })
   }
 
-  /**
-   * @param {{ useHash?: boolean }}
-   */
-  async generateRandomPassword({ useHash }) {
+  async generateRandomPassword({
+    useHash
+  }: {
+    useHash?: boolean
+  }): Promise<RandomPasswordResult> {
     const password = generator.generate({
       uppercase: true,
       length: 8
@@ -91,11 +91,7 @@ class AuthenticationService {
     }
   }
 
-  /**
-   * @param {string} value
-   * @returns {Promise<string>}
-   */
-  async hash(value) {
+  async hash(value: string): Promise<string> {
     const { provider } = this.configService
 
     return bcrypt.hash(value, provider.STRONG_HASH)

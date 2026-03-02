@@ -5,52 +5,56 @@ import { authLimiter } from 'middlewares/rateLimit'
 import { pipe } from './authentication.pipe'
 import { AuthenticationController } from './authentication.controller'
 import { isRunningOnProductionOrDevelopment } from 'functions'
+import type { HttpConsumer } from '@types'
 
 export class AuthenticationRouter {
+  private auth: Router
+  private logger = Logger.Service
+  private controller: AuthenticationController
+
   constructor() {
     this.auth = Router()
-    this.logger = Logger.Service
     this.controller = new AuthenticationController()
   }
 
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /auth')
     }
 
     this.auth.post(
       '/register',
-      [authLimiter, pipe.signUp, Middleware.usePipe, Middleware.LanguageGuard],
+      [authLimiter, ...pipe.signUp, Middleware.usePipe, Middleware.LanguageGuard],
       Middleware.secure(this.controller.signUp)
     )
 
     this.auth.post(
       '/login',
-      [authLimiter, pipe.signIn, Middleware.usePipe],
+      [authLimiter, ...pipe.signIn, Middleware.usePipe],
       Middleware.secure(this.controller.signIn)
     )
 
     this.auth.post(
       '/social/google',
-      [pipe.googleLogin, Middleware.usePipe, Middleware.LanguageGuard],
+      [...pipe.googleLogin, Middleware.usePipe, Middleware.LanguageGuard],
       Middleware.secure(this.controller.googleLogin)
     )
 
     this.auth.post(
       '/social/facebook',
-      [pipe.facebookLogin, Middleware.usePipe, Middleware.LanguageGuard],
+      [...pipe.facebookLogin, Middleware.usePipe, Middleware.LanguageGuard],
       Middleware.secure(this.controller.facebookLogin)
     )
 
     this.auth.put(
       '/verify',
-      [pipe.verifiy, Middleware.usePipe],
+      [...pipe.verifiy, Middleware.usePipe],
       Middleware.secure(this.controller.verification)
     )
 
     this.auth.post(
       '/forgot',
-      [authLimiter, pipe.forgot, Middleware.usePipe, Middleware.LanguageGuard],
+      [authLimiter, ...pipe.forgot, Middleware.usePipe, Middleware.LanguageGuard],
       Middleware.secure(this.controller.forgot)
     )
 
@@ -59,7 +63,7 @@ export class AuthenticationRouter {
       [
         Middleware.authenticate,
         Middleware.noDemoReferrer,
-        pipe.refresh,
+        ...pipe.refresh,
         Middleware.usePipe
       ],
       Middleware.secure(this.controller.refreshToken)
@@ -67,7 +71,7 @@ export class AuthenticationRouter {
 
     this.auth.put(
       '/reset',
-      [pipe.reset, Middleware.usePipe],
+      [...pipe.reset, Middleware.usePipe],
       Middleware.secure(this.controller.resetPassword)
     )
 

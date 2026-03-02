@@ -3,8 +3,9 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: ['**/__test__/**/*.test.js'],
   transform: {
-    '^.+\\.js$': 'babel-jest'
+    '^.+\\.[jt]s$': 'babel-jest'
   },
+  moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   moduleNameMapper: {
     '^api/(.*)$': '<rootDir>/src/api/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
