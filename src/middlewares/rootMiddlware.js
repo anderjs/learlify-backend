@@ -23,10 +23,16 @@ const corsOptions = {
  * @description
  * RootMiddleware.
  */
+const helmetOptions = {
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}
+
 const rootMiddleware = [
   requestId,
   metricsCollector,
-  helmet(),
+  helmet(helmetOptions),
   cors(corsOptions),
   globalLimiter,
   compression(),
