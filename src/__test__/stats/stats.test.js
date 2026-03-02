@@ -5,14 +5,15 @@ import { Models } from 'metadata/models'
 it('Should return bandScore', () => {
   /**
    * @description
-   * Expecting bandScore to be 0.
+   * Expecting bandScore to be 0 when value is below the minimum IELTS Reading
+   * range (min range starts at [5, 4, 2.5] so value 2 has no matching band).
    */
   expect(
     StatsFunctions.score({
       model: Models.IELTS,
       category: Categories.Reading,
-      value: 25
-    }).points
+      value: 2
+    }).bandScore
   ).toBe(0)
 })
 
