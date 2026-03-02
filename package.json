@@ -23,7 +23,7 @@
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",
     "knex": "^0.21.17",
-    "lodash": "^4.17.20",
+    "lodash": "^4.17.21",
     "moment": "^2.27.0",
     "moment-timezone": "^0.5.31",
     "morgan": "^1.10.0",
