@@ -6,6 +6,22 @@
 
 ---
 
+## Estado P0 (implementado 2026-03-03)
+
+| Entregable | Archivo | Estado |
+|---|---|---|
+| TypeScript + preset Babel | `package.json`, `.babelrc` | ✅ |
+| tsconfig (strict, allowJs) | `tsconfig.json` | ✅ |
+| Express types augmentation | `src/@types/express.d.ts` | ✅ |
+| Env schema Zod | `src/config/env.ts` | ✅ (standalone) |
+| Script `type-check` | `package.json` | ✅ |
+| CI job type-check | `.github/workflows/ci.yml` | ✅ |
+
+`env.ts` es standalone en P0 — no importado desde `config/index.js` aún.
+Integración con `config/index.js` se hace en P1 cuando se migre el primer flow.
+
+---
+
 ## Tabla de contenidos
 
 1. [Prerrequisitos](#prerrequisitos)
@@ -46,19 +62,21 @@ src/**/*.ts  ──┤── @babel/preset-typescript ──► dist/
 
 El flag `--noEmit` de tsc se corre en CI como validación, sin emitir archivos.
 
-### Scripts `package.json` a añadir
+### Scripts `package.json` añadidos
+
+Sólo dos cambios sobre los scripts existentes:
 
 ```json
 {
   "scripts": {
-    "build": "babel src -D --out-dir dist --extensions '.js,.ts'",
-    "type-check": "tsc --noEmit",
-    "type-check:watch": "tsc --noEmit --watch"
+    "build": "rimraf dist && babel src -D --out-dir dist --extensions '.js,.ts' && node dist && node prod.js",
+    "type-check": "tsc --noEmit"
   }
 }
 ```
 
-El script `build` existente sólo necesita `--extensions '.js,.ts'`.
+- `build`: añadido `--extensions '.js,.ts'` a la llamada de Babel (el resto es intacto)
+- `type-check`: nuevo script standalone
 
 ---
 
@@ -84,36 +102,21 @@ npm install --save-dev \
 
 ### Paso 2 — Añadir `@babel/preset-typescript` a Babel
 
-Editar `babel.config.js` (o `.babelrc`):
+El repo usa `.babelrc` (JSON). Añadir `@babel/preset-typescript` como segundo elemento del array `presets`. Los presets Babel se ejecutan en orden inverso, por lo que `@babel/preset-typescript` (último en array) procesa primero.
 
-```javascript
-module.exports = {
-  presets: [
-    ['@babel/preset-env', { targets: { node: 'current' } }],
-    '@babel/preset-typescript'
+Cambio mínimo en `.babelrc`:
+
+```json
+"presets": [
+  [
+    "@babel/preset-env",
+    { "targets": { "node": "current" } }
   ],
-  plugins: [
-    ['@babel/plugin-proposal-decorators', { legacy: true }],
-    '@babel/plugin-proposal-class-properties',
-    '@babel/plugin-proposal-private-methods',
-    ['babel-plugin-module-resolver', {
-      root: ['./src'],
-      alias: {
-        api: './src/api',
-        config: './src/config',
-        utils: './src/utils',
-        middlewares: './src/middlewares',
-        metadata: './src/metadata',
-        common: './src/common',
-        gateways: './src/gateways',
-        decorators: './src/decorators/index.js',
-        exceptions: './src/exceptions/index.js',
-        lib: './src/lib'
-      }
-    }]
-  ]
-}
+  "@babel/preset-typescript"
+]
 ```
+
+El array `plugins` no necesita modificación — `module-resolver` ya resuelve alias desde `root: ['./src']`.
 
 ### Paso 3 — Crear `tsconfig.json`
 
@@ -151,11 +154,11 @@ export {}
 
 ### Paso 5 — Schema de env con Zod
 
-```bash
-npm install zod
-```
+`src/config/env.ts` es un módulo standalone. En P0 **no se importa** desde `config/index.js` para no alterar el flujo de arranque existente. Se incluye en el `include` de `tsconfig.json` y es validado por `tsc --noEmit` en CI.
 
-Crear `src/config/env.ts`. Ver contenido en [MIGRATION_PLAN_P0_P1_P2.md — P0-5](./MIGRATION_PLAN_P0_P1_P2.md#p0-5-schema-de-env-zod).
+Integración con `config/index.js`: tarea P1 (cuando se migre el primer flow).
+
+Variables DB (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`) son `.optional()` para que `npm test` en CI pase sin una DB real.
 
 ### Paso 6 — Verificar en CI
 

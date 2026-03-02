@@ -1,0 +1,26 @@
+interface AuthUser {
+  id: number
+  email: string
+  roleId: number
+  role: string
+  isVerified: boolean
+  firstName: string
+  lastName: string
+  imageUrl?: string
+  model?: {
+    id: number
+    name: string
+  }
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUser
+      requestId?: string
+      locale?: string
+    }
+  }
+}
+
+export {}
