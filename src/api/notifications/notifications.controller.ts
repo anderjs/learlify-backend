@@ -1,16 +1,23 @@
+import type { Request, Response } from 'express'
 import { Bind } from 'decorators'
 import { NotificationsService } from './notifications.service'
 import { NotFoundException } from 'exceptions'
 import { createPaginationStack } from 'functions'
+import type {
+  NotificationData,
+  UpdateNotificationData
+} from './notifications.types'
 
 export class NotificationsController {
+  private notificationsService: NotificationsService
+
   constructor() {
     this.notificationsService = new NotificationsService()
   }
 
   @Bind
-  async create(req, res) {
-    const { senderId, userId, message, read, deleted, type } = req.body
+  async create(req: Request, res: Response): Promise<Response> {
+    const { senderId, userId, message, read, deleted, type } = req.body as NotificationData
 
     const notification = await this.notificationsService.create({
       senderId,
@@ -21,7 +28,7 @@ export class NotificationsController {
       type
     })
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Notification created succesfully',
       response: notification,
       statusCode: 201
@@ -29,25 +36,21 @@ export class NotificationsController {
   }
 
   @Bind
-  async getAll(req, res) {
-    /**
-     * The !req.query.unreads is for making the opposite of the purpose on marking this request.
-     */
+  async getAll(req: Request, res: Response): Promise<Response> {
     const notifications = await this.notificationsService.getAll({
-      userId: req.user.id,
-      page: req.query.page
+      userId: req.user!.id,
+      page: req.query.page as unknown as number
     })
 
     if (req.query.page) {
+      const paged = notifications as unknown as { results: unknown[]; total: number }
       return res.status(200).json({
         message: 'Notifications obtained successfully',
-        response: {
-          notifications: notifications.results
-        },
+        response: { notifications: paged.results },
         pagination: createPaginationStack({
           limit: 10,
-          page: req.query.page,
-          total: notifications.total
+          page: Number(req.query.page),
+          total: paged.total
         }),
         statusCode: 200
       })
@@ -55,27 +58,27 @@ export class NotificationsController {
 
     if (req.query.unreads) {
       const [unreads] = await this.notificationsService.getAll({
-        userId: req.user.id,
+        userId: req.user!.id,
         unreads: true
-      })
+      }) as unknown as Array<{ total: number } | undefined>
 
-      const notifications = await this.notificationsService.getAll({
+      const unreadNotifications = await this.notificationsService.getAll({
         read: false,
-        userId: req.user.id,
-        page: req.query.page
+        userId: req.user!.id,
+        page: req.query.page as unknown as number
       })
 
       return res.status(200).json({
         message: 'Notifications obtained succesfully',
         response: {
-          notifications,
+          notifications: unreadNotifications,
           unreads: unreads?.total ?? 0
         },
         statusCode: 200
       })
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Notifications obtained succesfully',
       response: notifications,
       statusCode: 200
@@ -83,7 +86,7 @@ export class NotificationsController {
   }
 
   @Bind
-  async getOne(req, res) {
+  async getOne(req: Request, res: Response): Promise<Response> {
     const notification = await this.notificationsService.getOne(req.params.id)
 
     if (notification) {
@@ -98,14 +101,13 @@ export class NotificationsController {
   }
 
   @Bind
-  async updateOne(req, res) {
+  async updateOne(req: Request, res: Response): Promise<Response> {
     const { id } = req.params
-
-    const data = req.body
+    const data = req.body as UpdateNotificationData
 
     const updated = await this.notificationsService.updateOne(id, data)
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Notification updated succesfully',
       response: updated,
       statusCode: 200
@@ -113,9 +115,9 @@ export class NotificationsController {
   }
 
   @Bind
-  async markAllAsRead(req, res) {
+  async markAllAsRead(req: Request, res: Response): Promise<Response> {
     const notifications = await this.notificationsService.updateAllAsRead({
-      userId: req.user.id
+      userId: req.user!.id
     })
 
     return res.status(201).json({
@@ -125,10 +127,10 @@ export class NotificationsController {
   }
 
   @Bind
-  async deleteExpired(req, res) {
+  async deleteExpired(_req: Request, res: Response): Promise<Response> {
     const numDeleted = await this.notificationsService.deleteExpired()
 
-    res.status(200).json({
+    return res.status(200).json({
       message: 'Expired notifications deleted successfully',
       response: numDeleted,
       statusCode: 200

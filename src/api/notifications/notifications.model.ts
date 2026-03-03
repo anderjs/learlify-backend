@@ -1,17 +1,23 @@
-import { Model } from 'objection'
+import { Model, JSONSchema, RelationMappings } from 'objection'
 import NotificationType from 'api/notification-types/notificationTypes.model'
 
 class Notification extends Model {
-  static get tableName() {
+  id!: number
+  senderId!: number
+  userId!: number
+  message!: string
+  read!: boolean
+  deleted!: boolean
+  type!: number
+
+  static get tableName(): string {
     return 'notifications'
   }
 
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
-
       required: ['userId'],
-
       properties: {
         id: { type: 'integer' },
         senderId: { type: 'integer' },
@@ -24,7 +30,7 @@ class Notification extends Model {
     }
   }
 
-  static relationMappings = {
+  static relationMappings: RelationMappings = {
     notificationType: {
       relation: Model.BelongsToOneRelation,
       modelClass: NotificationType,

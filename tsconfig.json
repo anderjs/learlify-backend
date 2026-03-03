@@ -28,6 +28,7 @@
       "decorators": ["decorators/index.d.ts"],
       "exceptions": ["exceptions/index.d.ts"],
       "functions": ["functions/index.js"],
+      "modules": ["modules/index.js"],
       "@types": ["@types/index.d.ts"]
     }
   },

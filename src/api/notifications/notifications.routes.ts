@@ -1,3 +1,5 @@
+import type { Router as ExpressRouter, RequestHandler } from 'express'
+import type { HttpConsumer } from '@types'
 import { Router } from 'decorators'
 import { Logger } from 'api/logger'
 import { Middleware } from 'middlewares'
@@ -12,12 +14,17 @@ import { OWNER } from 'metadata/owners'
   route: '/notifications'
 })
 class NotificationsRouter {
+  declare notifications: ExpressRouter
+  declare consumer: HttpConsumer
+  private controller: NotificationsController
+  private logger: typeof Logger.Service
+
   constructor() {
     this.controller = new NotificationsController()
     this.logger = Logger.Service
   }
 
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /notifications')
     }
@@ -29,13 +36,13 @@ class NotificationsRouter {
         Middleware.RolesGuard([Roles.Admin]),
         pipe.create,
         Middleware.usePipe
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.create)
     )
 
     this.notifications.get(
       '/all',
-      [Middleware.authenticate, pipe.getAll, Middleware.usePipe],
+      [Middleware.authenticate, pipe.getAll, Middleware.usePipe] as RequestHandler[],
       Middleware.secure(this.controller.getAll)
     )
 
@@ -46,7 +53,7 @@ class NotificationsRouter {
         Middleware.isResourceOwner({ context: OWNER.NOTIFICATION }),
         pipe.getOne,
         Middleware.usePipe
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.getOne)
     )
 
@@ -57,13 +64,13 @@ class NotificationsRouter {
         Middleware.isResourceOwner({ context: OWNER.NOTIFICATION }),
         pipe.updateOne,
         Middleware.usePipe
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.updateOne)
     )
 
     this.notifications.put(
       '/all',
-      [Middleware.authenticate, pipe.getAll, Middleware.usePipe],
+      [Middleware.authenticate, pipe.getAll, Middleware.usePipe] as RequestHandler[],
       Middleware.secure(this.controller.markAllAsRead)
     )
 
