@@ -8,9 +8,9 @@ import type { EncryptConfig, DecryptResult, RandomPasswordResult } from './authe
 
 type EncryptPayload = Record<string, unknown> & {
   password?: unknown
-  stripeCustomerId?: unknown
   googleId?: unknown
   facebookId?: unknown
+  stripeCustomerId?: unknown
 }
 
 @Injectable

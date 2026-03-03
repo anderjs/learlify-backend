@@ -28,14 +28,11 @@ import type {
 export class AuthenticationController {
   private logger = Logger.Service
   private authService: AuthenticationService
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private configService: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private userService: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private rolesService: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private mailService: any
+  private configService: ConfigService
+  private userService: UsersService
+  private rolesService: RolesService
+
+  private mailService: MailService
 
   constructor() {
     this.authService = new AuthenticationService()
@@ -131,7 +128,7 @@ export class AuthenticationController {
     if (user) {
       const authenticate = await this.authService.compareHash(
         sign.password,
-        user.password
+        user.password!
       )
 
       if (authenticate) {
@@ -236,7 +233,7 @@ export class AuthenticationController {
       imageUrl: sign.imageUrl,
       isVerified: true,
       lang: req.locale,
-      password: password.hash,
+      password: password.hash ?? undefined,
       roleId: role.id,
       lastLogin: moment().format('YYYY-MM-DD')
     })
@@ -352,7 +349,7 @@ export class AuthenticationController {
       imageUrl: body.imageUrl,
       isVerified: true,
       lang: req.locale,
-      password: password.hash,
+      password: password.hash ?? undefined,
       roleId: role.id,
       lastLogin: moment().format('YYYY-MM-DD')
     })
