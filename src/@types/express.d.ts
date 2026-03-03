@@ -15,10 +15,13 @@ interface AuthUser {
 
 declare global {
   namespace Express {
+    interface User extends AuthUser {}
+
     interface Request {
       user?: AuthUser
       requestId?: string
       locale?: string
+      timezone?: string
     }
 
     interface Response {

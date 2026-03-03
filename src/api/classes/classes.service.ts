@@ -3,24 +3,24 @@ import Package from 'api/packages/packages.model'
 import Schedule from 'api/schedule/schedule.model'
 import Meeting from 'api/meetings/meetings.model'
 import { Bind } from 'decorators'
+import type {
+  RelationshipConfig,
+  GetOneClassParams,
+  GetAllClassParams,
+  ClassTransactionResult,
+  CreateClassInput
+} from './classes.types'
 
-/**
- * @typedef {Object} Source
- * @property {{ id: number }} schedule
- * @property {{ id: number }} package
- */
 const relationShip = Symbol('relationShip')
 
 export class ClassesService {
+  private readonly clientAttributes: string[]
+
   constructor() {
-    this[relationShip] = {
+    (this as unknown as Record<symbol, RelationshipConfig>)[relationShip] = {
       getOne: {
-        meetings: {
-          $modify: ['withData']
-        },
-        schedule: {
-          $modify: ['withClass']
-        }
+        meetings: { $modify: ['withData'] },
+        schedule: { $modify: ['withClass'] }
       },
       getAll: {
         graph: '[meetings, schedule.[teacher(withName)]]',
@@ -34,76 +34,49 @@ export class ClassesService {
     }
     this.clientAttributes = ['expired', 'name', 'id']
   }
-  /**
-   * @param {Source} classInstance
-   * @returns {Promise<Classes>}
-   */
-  async create(classInstance) {
+
+  private get _rel(): RelationshipConfig {
+    return (this as unknown as Record<symbol, RelationshipConfig>)[relationShip]
+  }
+
+  async create(classInstance: CreateClassInput): Promise<ClassTransactionResult> {
     const trx = await Classes.knex().transaction(async trx => {
       try {
-        /**
-         * Substracting a class from the package.
-         */
         const pack = await Package.query(trx).patchAndFetchById(
           classInstance.package.id,
-          {
-            classes: classInstance.package.classes - 1
-          }
+          { classes: classInstance.package.classes - 1 }
         )
 
-        /**
-         * Making schedule to "taken" status.
-         */
         const schedule = await Schedule.query(trx)
-          .patchAndFetchById(classInstance.schedule.id, {
-            taken: true
-          })
-          .withGraphFetched({
-            teacher: {
-              $modify: ['withName']
-            }
-          })
+          .patchAndFetchById(classInstance.schedule.id, { taken: true })
+          .withGraphFetched({ teacher: { $modify: ['withName'] } })
 
-        /**
-         * Creating a class with the respective user.
-         */
         const room = await Classes.query(trx).insertAndFetch({
           scheduleId: classInstance.schedule.id,
           name: classInstance.name
         })
 
-        /**
-         * Creating an instance for the room of the current user.
-         */
         const meeting = await Meeting.query(trx).insertAndFetch({
           classId: room.id,
           userId: classInstance.user.id,
           timezone: classInstance.timezone
         })
 
-        return {
-          room,
-          package: pack,
-          meeting,
-          schedule
-        }
+        return { room, package: pack, meeting, schedule }
       } catch (err) {
         return {
           error: true,
-          stack: err.stack
+          stack: (err as Error).stack ?? String(err)
         }
       }
     })
 
-    return trx
+    return trx as ClassTransactionResult
   }
 
-  /**
-   * @param {{ id: number, name?: string }} classInstance
-   */
   @Bind
-  getOne(classInstance) {
-    const { getOne } = this[relationShip]
+  getOne(classInstance: GetOneClassParams) {
+    const { getOne } = this._rel
 
     if (classInstance.id) {
       return Classes.query().findById(classInstance.id)
@@ -111,23 +84,19 @@ export class ClassesService {
 
     return Classes.query()
       .select(this.clientAttributes)
-      .findOne(classInstance)
+      .findOne(classInstance as Record<string, unknown>)
       .withGraphFetched(getOne)
   }
 
-  /**
-   *
-   * @param {{ user: number, expired?: boolean, limit?: number }}
-   */
   @Bind
-  getAll({ user, teacher, expired, limit, ...props }) {
-    const { getAll, count } = this[relationShip]
+  getAll({ user, teacher, expired, limit, ...props }: GetAllClassParams) {
+    const { getAll, count } = this._rel
 
     if (props.count) {
       return Classes.query()
         .withGraphJoined(count.graph)
         .where('classes.expired', true)
-        .andWhere(count.foreignKey, props.options.teacherId)
+        .andWhere(count.foreignKey, props.options!.teacherId)
     }
 
     if (limit) {
@@ -135,8 +104,7 @@ export class ClassesService {
         .withGraphJoined(getAll.graph)
         .where({ expired })
         .limit(limit)
-        .andWhere(getAll.foreignKeyUser, user)
-        .modifiers(getAll.modifiers)
+        .andWhere(getAll.foreignKeyUser, user!)
         .orderBy('createdAt', 'DESC')
     }
 
@@ -144,12 +112,10 @@ export class ClassesService {
       ? Classes.query()
           .withGraphJoined(getAll.graph)
           .where({ expired })
-          .andWhere(getAll.foreignKeyUser, user)
-          .modifiers(getAll.modifiers)
+          .andWhere(getAll.foreignKeyUser, user!)
       : Classes.query()
           .withGraphJoined(getAll.graph)
           .where({ expired })
-          .andWhere(getAll.foreignKeyTeacher, teacher)
-          .modifiers(getAll.modifiers)
+          .andWhere(getAll.foreignKeyTeacher, teacher!)
   }
 }

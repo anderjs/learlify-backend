@@ -1,3 +1,5 @@
+import type { Router as ExpressRouter, RequestHandler } from 'express'
+import type { HttpConsumer } from '@types'
 import { Logger } from 'api/logger'
 import { Router } from 'decorators'
 import { ClassesController } from './classes.controller'
@@ -5,33 +7,26 @@ import { Middleware } from 'middlewares'
 import { pipe } from './classes.pipe'
 import { isRunningOnProductionOrDevelopment } from 'functions'
 
-/**
- * @description
- * Inheris methods like this.consumer
- */
 @Router({
   alias: 'classes',
   route: '/classes'
 })
 class Classes {
+  declare classes: ExpressRouter
+  declare consumer: HttpConsumer
+  private controller: ClassesController
+  private logger: typeof Logger.Service
+
   constructor() {
     this.controller = new ClassesController()
     this.logger = Logger.Service
   }
 
-  /**
-   * @returns {HttpConsumer}
-   */
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /classes')
     }
 
-    /**
-     * @description
-     * Joins the meeting in a schedule.
-     * @method POST
-     */
     this.classes.post(
       '/',
       [
@@ -40,14 +35,10 @@ class Classes {
         pipe.create,
         Middleware.usePipe,
         Middleware.timezone
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.create)
     )
 
-    /**
-     * Obtains class from roomName.
-     * @method GET
-     */
     this.classes.get(
       '/',
       [
@@ -55,7 +46,7 @@ class Classes {
         pipe.getOne,
         Middleware.usePipe,
         Middleware.timezone
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.getOne)
     )
 
