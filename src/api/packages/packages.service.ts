@@ -5,7 +5,6 @@ import User from 'api/users/users.model'
 import Progress from 'api/progress/progress.model'
 import Evaluation from 'api/evaluations/evaluations.model'
 import STATUS from 'api/evaluations/evaluations.status'
-
 import { exist } from 'functions'
 import { Bind } from 'decorators'
 import { Logger } from 'api/logger'
@@ -14,23 +13,38 @@ import { NotificationContext } from 'api/notifications/notification.context'
 import { AdminPrivateMessage } from 'metadata/notifications'
 import { Socket } from 'modules'
 import { NOTIFICATION } from 'gateways/events'
-
-/**
- * @typedef {Object} Source
- * @property {number} userId
- * @property {number} planId
- */
+import type {
+  CreatePackageInput,
+  TransactionablePackageInput,
+  TransactionablePackageResult,
+  GetAllPackagesParams,
+  GetOnePackageParams,
+  GetActiveSubscriptionParams,
+  UpdateOneInput,
+  UpdateAndCreateEvaluationInput,
+  UpdateAndCreateEvaluationResult,
+  SubscriptionStatus,
+  RelationshipConfig,
+  WritingsAndSpeakingsCount
+} from './packages.types'
 
 const stripePrivateKey = Symbol('stripePrivateKey')
 const relationShip = Symbol('relationShip')
 
+type PrivateStore = {
+  [stripePrivateKey]: StripeService
+  [relationShip]: RelationshipConfig
+}
+
 export class PackagesService {
+  private logger: typeof Logger.Service
+  context: NotificationContext
+  createTransactionablePackage: PackagesService['_createTransactionablePackage']
+
   constructor() {
-    this[stripePrivateKey] = new StripeService()
-    this.createTransactionablePackage = this.createTransactionablePackage.bind(
-      this
-    )
-    this[relationShip] = {
+    const store = this as unknown as PrivateStore
+    store[stripePrivateKey] = new StripeService()
+    store[relationShip] = {
       plan: {
         plan: {
           access: true
@@ -47,60 +61,37 @@ export class PackagesService {
     }
     this.logger = Logger.Service
     this.context = new NotificationContext()
+    this.createTransactionablePackage = this._createTransactionablePackage.bind(this)
   }
 
-  /**
-   * @param {[]} packages
-   * @returns {Array<{ active?: true} | { inactive?: true}>}
-   */
-  static getActiveSubscriptions(packages) {
-    return packages.reduce((current, next) => {
+  static getActiveSubscriptions(packages: unknown[][]): SubscriptionStatus[] {
+    return packages.reduce<SubscriptionStatus[]>((current, next) => {
       if (next && next.length > 0) {
         return current.concat({ active: true })
       }
-
       return current.concat({ inactive: true })
     }, [])
   }
 
-  /**
-   * @param {Source} packageSource
-   * @returns {Promise<Package>}
-   */
   @Bind
-  async create(packageSource) {
-    const { users } = this[relationShip]
+  async create(packageSource: CreatePackageInput): Promise<Package> {
+    const store = this as unknown as PrivateStore
+    const { users } = store[relationShip]
 
     const stream = new Socket()
 
     const pack = await Package.query()
       .select([
-        'id',
-        'isActive',
-        'writings',
-        'speakings',
-        'classes',
-        'createdAt',
-        'updatedAt',
-        'expirationDate',
-        'total',
-        'isNotified'
+        'id', 'isActive', 'writings', 'speakings', 'classes',
+        'createdAt', 'updatedAt', 'expirationDate', 'total', 'isNotified'
       ])
       .insertAndFetch(packageSource)
       .withGraphFetched(users)
 
-    /**
-     * @description
-     * Notification Context.
-     */
     const type = await this.context.getContextIdentifier({
       name: AdminPrivateMessage
-    })
+    }) as unknown as { id: number }
 
-    /**
-     * @description
-     * Creating notification for user.
-     */
     const notification = await Notification.query()
       .insertAndFetch({
         message: 'Default Package Notification',
@@ -110,45 +101,39 @@ export class PackagesService {
       })
       .withGraphFetched({ notificationType: true })
 
-    /**
-     * Sending notification to the client as emit.
-     */
-    stream.socket.to(pack.user.email).emit(NOTIFICATION, notification)
+    stream.socket.to((pack as unknown as { user: { email: string } }).user.email).emit(NOTIFICATION, notification)
 
     return pack
   }
 
-  /**
-   * @typedef {Object} TransactionablePackage
-   * @property {{ id?: number }} user
-   * @property {{ id?: number }} plan
-   * @property {{ paymentMethodId?: string }} code
-   * @property {string} expirationDate
-   *
-   * @param {TransactionablePackage} data
-   * @param {boolean} requiresAction If true, will re-setup the payment intent.
-   * @param {boolean} cancel If true paymentIntent needs to be cancelled.
-   * @returns {Promise<Package>}
-   */
   @Bind
-  async createTransactionablePackage(data, requiresAction, cancel) {
-    const { users } = this[relationShip]
-
-    const stripe = this[stripePrivateKey]
-
+  private async _createTransactionablePackage(
+    data: TransactionablePackageInput,
+    requiresAction: boolean,
+    cancel: boolean
+  ): Promise<TransactionablePackageResult> {
+    const store = this as unknown as PrivateStore
+    const { users } = store[relationShip]
+    const stripe = store[stripePrivateKey] as unknown as {
+      addCustomer(opts: unknown): Promise<{ exist: boolean; membership: { id: string } }>
+      cancelPaymentIntent(id: string): Promise<unknown>
+      confirmIntentPayment(id: string): Promise<{ id: string }>
+      addIntentPayment(opts: unknown): Promise<{ id: string }>
+    }
     const knexInstance = Package.knex()
 
     try {
       const result = await knexInstance.transaction(async trx => {
-        const user = await User.query(trx).findOne({
-          id: data.user.id
-        })
+        const user = await User.query(trx).findOne({ id: data.user.id }) as unknown as {
+          id: number; email: string; firstName: string; lastName: string; stripeCustomerId: string
+        }
 
-        const plan = await Plan.query(trx).findOne({
-          id: data.plan.id
-        })
+        const plan = await Plan.query(trx).findOne({ id: data.plan.id }) as unknown as {
+          id: number; speaking: number; writing: number; classes: number
+          currency: string; price: number; name: string; modelId: number
+        }
 
-        if (exist([user, plan])) {
+        if ((exist as unknown as (args: unknown[]) => boolean)([user, plan])) {
           const customer = await stripe.addCustomer({
             email: user.email,
             firstName: user.firstName,
@@ -163,26 +148,12 @@ export class PackagesService {
           }
 
           if (cancel) {
-            const intent = await stripe.cancelPaymentIntent(
-              data.code.paymentMethodId
-            )
-
-            return {
-              plan,
-              package: null,
-              cancelled: true,
-              intent
-            }
+            const intent = await stripe.cancelPaymentIntent(data.code.paymentMethodId!)
+            return { plan, package: null, cancelled: true, intent }
           }
 
-          /**
-           * @description
-           * This only works if the 3D Security or Strong Customer Authentication wants to confirm payment.
-           */
           if (requiresAction) {
-            const intent = await this[stripePrivateKey].confirmIntentPayment(
-              data.code.paymentMethodId
-            )
+            const intent = await stripe.confirmIntentPayment(data.code.paymentMethodId!)
             const pack = await Package.query(trx)
               .insertAndFetch({
                 expirationDate: data.expirationDate,
@@ -194,34 +165,26 @@ export class PackagesService {
                 writings: plan.writing,
                 classes: plan.classes
               })
-              .withGraphFetched(this[relationShip].plan)
+              .withGraphFetched(store[relationShip].plan)
 
-            return {
-              package: {
-                ...pack
-              },
-              plan
-            }
+            return { package: { ...pack }, plan }
           }
 
-          const intent = await this[stripePrivateKey].addIntentPayment({
+          const intent = await stripe.addIntentPayment({
             email: user.email,
             paymentMethodId: data.code.paymentMethodId,
             currency: plan.currency,
             amount: plan.price,
             name: plan.name,
-            customer: customer.exist
-              ? user.stripeCustomerId
-              : customer.membership.id
+            customer: customer.exist ? user.stripeCustomerId : customer.membership.id
           })
 
-          const response = StripeService.generatePaymentResponse(intent)
+          const response = (StripeService as unknown as {
+            generatePaymentResponse(i: unknown): { requiresAction: boolean }
+          }).generatePaymentResponse(intent)
 
           if (response.requiresAction) {
-            return {
-              package: null,
-              intent
-            }
+            return { package: null, intent }
           }
 
           const pack = await Package.query(trx)
@@ -237,46 +200,35 @@ export class PackagesService {
             })
             .withGraphFetched(users)
 
-          return {
-            package: {
-              ...pack,
-              plan
-            },
-            plan,
-            intent
-          }
+          return { package: { ...pack, plan }, plan, intent }
         } else {
           throw new Error('User or Plan not found')
         }
       })
 
-      return result
+      return result as TransactionablePackageResult
     } catch (err) {
       this.logger.error('createTransactionablePackage', {
-        message: err.message,
-        stack: err.stack
+        message: (err as Error).message,
+        stack: (err as Error).stack
       })
-
       return {
-        details: err.message,
-        stack: err.stack,
+        details: (err as Error).message,
+        stack: (err as Error).stack,
         error: true
       }
     }
   }
 
-  /**
-   * @param {Source} source
-   * @returns {Promise<Package []>}
-   */
   @Bind
-  getAll({ date, modelId, ...source }) {
-    const { plan, users } = this[relationShip]
+  getAll({ date, modelId, ...source }: GetAllPackagesParams) {
+    const store = this as unknown as PrivateStore
+    const { plan, users } = store[relationShip]
 
     if (modelId) {
       return Package.query()
         .withGraphJoined(plan)
-        .where(source)
+        .where(source as Record<string, unknown>)
         .andWhere('plan.modelId', modelId)
     }
 
@@ -288,42 +240,27 @@ export class PackagesService {
             .andWhere({ isNotified: false })
             .withGraphFetched(users)
         : Package.query()
-            .where('expirationDate', '<', date.today)
+            .where('expirationDate', '<', date.today!)
             .andWhere({ isActive: true })
             .withGraphFetched(users)
     }
 
-    return Package.query().where(source).withGraphFetched(plan)
+    return Package.query().where(source as Record<string, unknown>).withGraphFetched(plan)
   }
 
-  /**
-   * @param {{ userId?: number, competence?: 'speaking' | 'writing '}}
-   * @returns {Promise<Package>}
-   */
-
-  getActiveSubscription({ userId, competence }) {
+  getActiveSubscription({ userId, competence }: GetActiveSubscriptionParams) {
     if (competence) {
       return Package.query()
-        .findOne({
-          isActive: true,
-          userId
-        })
+        .findOne({ isActive: true, userId })
         .andWhere(`${competence}`, '>', 0)
     }
 
     return Package.query()
-      .findOne({
-        isActive: true,
-        userId
-      })
+      .findOne({ isActive: true, userId })
       .withGraphFetched('plan')
   }
 
-  /**
-   * @param {{ id: number }}
-   * @returns {Promise<Package>}
-   */
-  getOne({ id, modelId, access, ...data }) {
+  getOne({ id, modelId, access, ...data }: GetOnePackageParams) {
     if (id) {
       return Package.query().findById(id)
     }
@@ -333,29 +270,25 @@ export class PackagesService {
         .findOne(data)
         .withGraphJoined('plan.access')
         .where('plan.modelId', modelId)
-        .andWhere('plan:access.feature', access || 'EXAMS')
+        .andWhere('plan:access.feature', access ?? 'EXAMS')
     }
+
     return Package.query().findOne(data)
   }
 
-  updateOne({ id, ...data }) {
+  updateOne({ id, ...data }: UpdateOneInput) {
     if (id) {
       return Package.query().patchAndFetchById(id, data)
     }
-    return Package.query().patchAndFetchBy(data)
+    return (Package.query() as unknown as { patchAndFetchBy(d: Record<string, unknown>): Promise<Package> }).patchAndFetchBy(data as Record<string, unknown>)
   }
 
-  /**
-   * @param {{ package: {}, progress: {}, type: string, user: {} }} data
-   */
-  async updateAndCreateEvaluation(data) {
+  async updateAndCreateEvaluation(data: UpdateAndCreateEvaluationInput): Promise<UpdateAndCreateEvaluationResult> {
     try {
       const transaction = await Package.knex().transaction(async trx => {
         const update = await Package.query(trx).patchAndFetchById(
           data.package.id,
-          {
-            [data.type]: data.package[data.type] - 1
-          }
+          { [data.type]: (data.package[data.type] as number) - 1 }
         )
 
         this.logger.warn('update', {
@@ -377,42 +310,29 @@ export class PackagesService {
 
         this.logger.info('evaluation', evaluation)
 
-        return {
-          update,
-          evaluation
-        }
+        return { update, evaluation }
       })
 
-      return transaction
+      return transaction as UpdateAndCreateEvaluationResult
     } catch (err) {
-      return {
-        details: err,
-        transactionError: true
-      }
+      return { details: err, transactionError: true }
     }
   }
 
-  /**
-   * @param {{}} data
-   * @param {string []} features
-   */
-  async getSubscriptions(data, features) {
-    const packages = await this.getAll(data)
+  async getSubscriptions(data: GetAllPackagesParams, features: string[]): Promise<boolean> {
+    const packages = await this.getAll(data) as unknown as Array<{
+      plan: { access: Array<{ feature: string }> }
+    }>
 
     const plans = packages.filter(({ plan }) =>
       plan.access.find(({ feature }) => features.includes(feature))
     )
 
-    const isActive = plans.length > 0
-
-    return isActive
+    return plans.length > 0
   }
 
-  /**
-   * @param {Package}
-   */
-  async getWritingsAndSpeakings({ userId }) {
-    const count = {}
+  async getWritingsAndSpeakings({ userId }: { userId: number }): Promise<WritingsAndSpeakingsCount> {
+    const count: WritingsAndSpeakingsCount = {}
 
     const speakings = await Package.query()
       .count('speakings as speakings')
@@ -423,11 +343,11 @@ export class PackagesService {
       .where({ userId, isActive: true })
 
     if (speakings && speakings[0]) {
-      count.speakings = speakings[0].speakings
+      count.speakings = (speakings[0] as unknown as Record<string, unknown>).speakings
     }
 
     if (speakings && writings[0]) {
-      count.writings = writings[0].writings
+      count.writings = (writings[0] as unknown as Record<string, unknown>).writings
     }
 
     return count

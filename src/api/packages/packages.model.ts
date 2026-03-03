@@ -1,30 +1,37 @@
-import { Model } from 'objection'
-/**
- * @alias relations
- */
+import { Model, JSONSchema, RelationMappings } from 'objection'
 import User from 'api/users/users.model'
 import Plan from 'api/plans/plans.model'
 
 class Package extends Model {
-  static get tableName() {
+  id!: number
+  total!: number
+  isActive!: boolean
+  expirationDate!: string
+  stripeChargeId!: string
+  userId!: number
+  planId!: number
+  speakings!: number
+  writings!: number
+  classes!: number
+  isNotified!: boolean
+
+  static get tableName(): string {
     return 'packages'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
-
       required: ['userId', 'planId', 'expirationDate', 'writings', 'speakings'],
-
       properties: {
         id: { type: 'integer' },
         total: { type: 'integer' },
         isActive: { type: 'boolean' },
-        expirationDate: { type: 'date' },
+        expirationDate: { type: 'string' },
         stripeChargeId: { type: 'string' },
         userId: { type: 'integer' },
         planId: { type: 'integer' },
@@ -34,7 +41,7 @@ class Package extends Model {
     }
   }
 
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       user: {
         relation: Model.HasOneRelation,

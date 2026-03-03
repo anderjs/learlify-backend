@@ -1,3 +1,5 @@
+import type { Router as ExpressRouter, RequestHandler } from 'express'
+import type { HttpConsumer } from '@types'
 import { Router } from 'decorators'
 import { Logger } from 'api/logger'
 import { Middleware } from 'middlewares'
@@ -11,20 +13,26 @@ import { isRunningOnProductionOrDevelopment } from 'functions'
   route: '/packages'
 })
 class PackageRouter {
+  declare packages: ExpressRouter
+  declare consumer: HttpConsumer
+  private controller: PackagesController
+  private logger: typeof Logger.Service
+  private permissions: string[]
+
   constructor() {
     this.controller = new PackagesController()
     this.logger = Logger.Service
     this.permissions = [Roles.Admin]
   }
 
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /packages')
     }
 
     this.packages.get(
       '/',
-      [Middleware.authenticate, pipe.getAll, Middleware.usePipe],
+      [Middleware.authenticate, pipe.getAll, Middleware.usePipe] as RequestHandler[],
       Middleware.secure(this.controller.getAll)
     )
 
@@ -36,7 +44,7 @@ class PackageRouter {
         Middleware.LanguageGuard,
         pipe.create,
         Middleware.usePipe
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.create)
     )
 
@@ -48,7 +56,7 @@ class PackageRouter {
         Middleware.LanguageGuard,
         pipe.assign,
         Middleware.usePipe
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.assign)
     )
 
@@ -59,7 +67,7 @@ class PackageRouter {
         Middleware.noDemoReferrer,
         Middleware.LanguageGuard,
         pipe.update
-      ],
+      ] as RequestHandler[],
       Middleware.secure(this.controller.update)
     )
 
