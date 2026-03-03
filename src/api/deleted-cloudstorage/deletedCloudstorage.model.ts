@@ -1,18 +1,24 @@
-import { Model } from 'objection'
+import { Model, JSONSchema } from 'objection'
 
 class DeletedCloudStorage extends Model {
-  static get tableName() {
+  id!: number
+  bucket!: string
+  location!: string
+  ETag!: string
+  key!: string
+  userId!: number
+
+  static get tableName(): string {
     return 'deleted_cloudstorage'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
-
       properties: {
         id: { type: 'integer' },
         bucket: { type: 'string' },

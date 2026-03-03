@@ -1,22 +1,21 @@
-import { Model } from 'objection'
+import { Model, JSONSchema, RelationMappings } from 'objection'
 import Schedule from 'api/schedule/schedule.model'
 
 class Language extends Model {
-  static get tableName() {
+  id!: number
+  lang!: string
+
+  static get tableName(): string {
     return 'languages'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  /**
-   * @returns {import('objection').JsonSchema}
-   */
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
-
       properties: {
         id: { type: 'integer' },
         lang: { type: 'string' }
@@ -24,14 +23,11 @@ class Language extends Model {
     }
   }
 
-  /**
-   * @returns {import('objection').RelationMappings}
-   */
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       schedules: {
         relation: Model.HasManyRelation,
-        modelClass: Schedule,
+        modelClass: Schedule as unknown as typeof Model,
         join: {
           from: 'languages.id',
           to: 'schedule.langId'

@@ -1,26 +1,24 @@
-import { Model } from 'objection'
-
-/**
- * DeletedUser Model
- * @class DeletedUser
- * @extends {Model}
- */
+import { Model, JSONSchema } from 'objection'
 
 class DeletedUser extends Model {
-  static get tableName() {
+  id!: number
+  userId!: number
+  email!: string
+  firstName!: string
+  lastName!: string
+
+  static get tableName(): string {
     return 'deleted_users'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
-
       required: ['userId', 'email', 'firstName', 'lastName'],
-
       properties: {
         id: { type: 'integer' },
         userId: { type: 'integer' },

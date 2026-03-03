@@ -1,28 +1,28 @@
+import type { Request, Response, NextFunction } from 'express'
+import type { Logger as WinstonLogger } from 'winston'
 import { Bind } from 'decorators'
 import { ModelsService } from './models.service'
 import { NotFoundException } from 'exceptions'
 import { UsersService } from 'api/users/users.service'
 import { Logger } from 'api/logger'
 import { AuthenticationService } from 'api/authentication/authentication.service'
-
 import demo from 'metadata/demo'
 
 class ModelsController {
+  private auth: AuthenticationService
+  private models: ModelsService
+  private users: UsersService
+  private logger: WinstonLogger
+
   constructor() {
     this.auth = new AuthenticationService()
     this.models = new ModelsService()
-    this.users = new UsersService()
+    this.users = new UsersService() as unknown as UsersService
     this.logger = Logger.Service
   }
 
-  /**
-   *
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   * @param {Function} next
-   */
   @Bind
-  async getAll(req, res, next) {
+  async getAll(req: Request, res: Response, next: NextFunction): Promise<void | Response> {
     if (req.query?.name) {
       return next()
     }
@@ -36,9 +36,9 @@ class ModelsController {
   }
 
   @Bind
-  async getOne(req, res) {
+  async getOne(req: Request, res: Response): Promise<Response> {
     const model = await this.models.getOne({
-      name: req.query.name
+      name: req.query.name as string
     })
 
     if (model) {
@@ -50,24 +50,19 @@ class ModelsController {
 
     throw new NotFoundException('Model Not Found')
   }
-  /**
-   *
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   * @param {Function} next
-   */
+
   @Bind
-  async patch(req, res) {
-    const { name } = req.query
+  async patch(req: Request, res: Response): Promise<Response> {
+    const { name } = req.query as { name: string }
 
-    const model = await this.models.getOne({
-      name
-    })
+    const model = await this.models.getOne({ name })
 
-    if (demo.isDemoUser(req.user.email)) {
+    if ((demo as unknown as { isDemoUser(email: string): boolean }).isDemoUser(req.user!.email)) {
       return res.status(200).json({
         response: {
-          token: this.auth.encrypt(
+          token: (this.auth as unknown as {
+            encrypt(payload: unknown, opts: unknown): string
+          }).encrypt(
             { ...req.user, isVerified: true, model },
             { clientConfig: true }
           )
@@ -77,18 +72,21 @@ class ModelsController {
     }
 
     if (model) {
-      const update = await this.users.updateOne({
-        id: req.user.id,
+      const update = await (this.users as unknown as {
+        updateOne(data: { id: number; modelId: number }): Promise<{ email: string }>
+      }).updateOne({
+        id: req.user!.id,
         modelId: model.id
       })
 
       this.logger.info(`model ${model.name}`)
-
       this.logger.info(`update ${update.email}`)
 
       return res.status(200).json({
         response: {
-          token: this.auth.encrypt({ ...update, model }, { clientConfig: true })
+          token: (this.auth as unknown as {
+            encrypt(payload: unknown, opts: unknown): string
+          }).encrypt({ ...req.user, model }, { clientConfig: true })
         },
         statusCode: 200
       })

@@ -1,23 +1,26 @@
-import { Model } from 'objection'
+import { Model, JSONSchema, RelationMappings } from 'objection'
 import User from 'api/users/users.model'
 
 class Role extends Model {
-  static get tableName() {
+  id!: number
+  name!: string
+
+  static get tableName(): string {
     return 'roles'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       id: { type: 'integer' },
       name: { type: 'string' }
-    }
+    } as unknown as JSONSchema
   }
 
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       users: {
         relation: Model.BelongsToOneRelation,
@@ -30,12 +33,9 @@ class Role extends Model {
     }
   }
 
-  /**
-   * @returns {import ('objection').Modifiers}
-   */
   static get modifiers() {
     return {
-      name(builder) {
+      name(builder: { select(cols: string[]): void }) {
         builder.select(['name'])
       }
     }

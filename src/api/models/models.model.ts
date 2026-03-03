@@ -1,15 +1,17 @@
+import { Model, JSONSchema, RelationMappings, ModelClass } from 'objection'
 import Course from 'api/courses/courses.model'
 import Plan from 'api/plans/plans.model'
 import User from 'api/users/users.model'
-import { Model } from 'objection'
 
 class Models extends Model {
-  static get tableName () {
+  id!: number
+  name!: string
+
+  static get tableName(): string {
     return 'exam_models'
   }
 
-
-  static get jsonSchema () {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
       properties: {
@@ -19,25 +21,18 @@ class Models extends Model {
     }
   }
 
-
-  /**
-   * @returns {import ('objection').Modifiers}
-   */
-  static get modifiers () {
+  static get modifiers() {
     return {
-      clientAttributes (builder) {
+      clientAttributes(builder: { select(cols: string[]): void }) {
         builder.select(['*'])
       },
-
-      token (builder) {
+      token(builder: { select(cols: string[]): void }) {
         builder.select(['id', 'name'])
       }
     }
   }
-  /**
-   * @returns {import ('objection').RelationMappings}
-   */
-  static get relationMappings() {
+
+  static get relationMappings(): RelationMappings {
     return {
       users: {
         modelClass: User,
@@ -47,18 +42,16 @@ class Models extends Model {
           to: 'users.id'
         }
       },
-
       plans: {
-        modelClass: Plan,
+        modelClass: Plan as unknown as ModelClass<Model>,
         relation: Model.HasManyRelation,
         join: {
           from: 'exams_models.id',
           to: 'plans.modelId'
         }
       },
-
       courses: {
-        modelClass: Course,
+        modelClass: Course as unknown as ModelClass<Model>,
         relation: Model.HasManyRelation,
         join: {
           from: 'exams_models.id',

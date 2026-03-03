@@ -4,10 +4,8 @@ class ModelsService {
   getAll() {
     return Models.query()
   }
-  /**
-   * @param {{ name: string }} data
-   */
-  getOne(data) {
+
+  getOne(data: Record<string, unknown>) {
     return Models.query().findOne(data)
   }
 }

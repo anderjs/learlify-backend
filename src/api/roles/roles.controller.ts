@@ -1,17 +1,16 @@
+import type { Request, Response } from 'express'
 import { Bind } from 'decorators'
 import { RolesService } from './roles.services'
 
 export class RolesController {
+  private rolesService: RolesService
+
   constructor() {
     this.rolesService = new RolesService()
   }
 
-  /**
-   * @param {import ('express').Request} _req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async getAll(_req, res) {
+  async getAll(_req: Request, res: Response): Promise<Response> {
     const roles = await this.rolesService.getAll()
 
     return res.status(200).json({

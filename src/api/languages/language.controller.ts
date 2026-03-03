@@ -1,18 +1,16 @@
+import type { Request, Response } from 'express'
 import { Bind } from 'decorators'
 import { LanguageService } from './languages.services'
 
 class LanguageController {
-  constructor () {
+  private languagesService: LanguageService
+
+  constructor() {
     this.languagesService = new LanguageService()
   }
-  
-  /**
-   * 
-   * @param {import ('express').Request} req 
-   * @param {import ('express').Response} res 
-   */
+
   @Bind
-  async getAll (req, res) {
+  async getAll(_req: Request, res: Response): Promise<Response> {
     const languages = await this.languagesService.getAll()
 
     return res.status(200).json({
