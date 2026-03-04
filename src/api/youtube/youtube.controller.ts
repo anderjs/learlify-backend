@@ -1,16 +1,14 @@
-import { Bind } from 'decorators'
 import { YoutubeService } from './youtube.service'
+import type { Request, Response } from 'express'
 
 class YoutubeController {
-  constructor () {
+  private youtubeService: YoutubeService
+
+  constructor() {
     this.youtubeService = new YoutubeService()
   }
-  /**
-   * @param {import ('express').Request} req 
-   * @param {import ('express').Response} res 
-   */
-  @Bind
-  async getAll (req, res) {
+
+  async getAll(req: Request, res: Response): Promise<Response> {
     return res.json({
       statusCode: 404
     })

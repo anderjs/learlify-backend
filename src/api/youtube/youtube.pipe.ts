@@ -1,7 +1,7 @@
 import { checkSchema } from 'express-validator'
 
-class Youtube {
-  get getAll () {
+export class YoutubePipe {
+  get getAll(): ReturnType<typeof checkSchema> {
     return checkSchema({
       items: {
         in: 'query',
@@ -13,4 +13,4 @@ class Youtube {
   }
 }
 
-export const pipe = new Youtube()
+export const pipe = new YoutubePipe()
