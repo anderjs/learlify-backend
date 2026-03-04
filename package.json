@@ -113,12 +113,12 @@
     "lint:fix": "eslint \"src/**/*.js\" --fix",
     "format": "prettier --write \"src/**/*.js\"",
     "docs": "jsdoc -c jsdoc.json",
-    "access": "npx cross-env NODE_ENV=development npx babel-node src/scripts/access",
-    "upgrade": "npx cross-env NODE_ENV=upgrade npx babel-node src/scripts/progress",
-    "restart": "npx cross-env NODE_ENV=development npx babel-node src/scripts/restart.progress",
-    "marking": "npx cross-env NODE_ENV=development npx babel-node src/scripts/marking",
-    "merge": "npx cross-env NODE_ENV=development npx babel-node src/scripts/merge",
-    "assets": "npx cross-env NODE_ENV=development npx babel-node src/scripts/exams.images && npx cross-env NODE_ENV=development npx babel-node src/scripts/categories.images"
+    "access": "npx cross-env NODE_ENV=development npx babel-node src/scripts/access.ts",
+    "upgrade": "npx cross-env NODE_ENV=upgrade npx babel-node src/scripts/progress.ts",
+    "restart": "npx cross-env NODE_ENV=development npx babel-node src/scripts/restart.progress.ts",
+    "marking": "npx cross-env NODE_ENV=development npx babel-node src/scripts/marking.ts",
+    "merge": "npx cross-env NODE_ENV=development npx babel-node src/scripts/merge.ts",
+    "assets": "npx cross-env NODE_ENV=development npx babel-node src/scripts/exams.images.ts && npx cross-env NODE_ENV=development npx babel-node src/scripts/categories.images.ts"
   },
   "keywords": [],
   "author": "Anderson Arevalo & Luis Vilchez",
