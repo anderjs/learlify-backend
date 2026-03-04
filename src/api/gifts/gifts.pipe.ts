@@ -1,7 +1,8 @@
 import { checkSchema } from 'express-validator'
+import type { ValidationChain } from 'express-validator'
 
 class Gifts {
-  get create() {
+  get create(): ValidationChain[] {
     return checkSchema({
       paymentMethod: {
         in: 'body',
@@ -19,18 +20,18 @@ class Gifts {
       requiresAction: {
         in: 'body',
         isBoolean: true
-      } 
-    })
+      }
+    }) as unknown as ValidationChain[]
   }
 
-  get exchange() {
+  get exchange(): ValidationChain[] {
     return checkSchema({
       code: {
         errorMessage: 'code is required',
         in: 'query',
         isString: true
       }
-    })
+    }) as unknown as ValidationChain[]
   }
 }
 

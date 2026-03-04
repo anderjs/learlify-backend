@@ -1,17 +1,25 @@
 import { Model } from 'objection'
+import type { JSONSchema, RelationMappings, ModelClass } from 'objection'
 import User from 'api/users/users.model'
 import Plan from 'api/plans/plans.model'
 
 class Gift extends Model {
-  static get tableName() {
+  id!: number
+  email?: string
+  gifter?: number
+  planId?: number
+  serial?: string
+  expired?: boolean
+
+  static get tableName(): string {
     return 'gifts'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
 
@@ -23,13 +31,13 @@ class Gift extends Model {
         serial: { type: 'string ' },
         expired: { type: 'boolean' }
       }
-    }
+    } as JSONSchema
   }
 
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       users: {
-        modelClass: User,
+        modelClass: User as unknown as ModelClass<Model>,
         relation: Model.HasOneRelation,
         join: {
           from: 'gifts.gifter',
@@ -38,7 +46,7 @@ class Gift extends Model {
       },
 
       plans: {
-        modelClass: Plan,
+        modelClass: Plan as unknown as ModelClass<Model>,
         relation: Model.HasOneRelation,
         join: {
           from: 'gifts.planId',

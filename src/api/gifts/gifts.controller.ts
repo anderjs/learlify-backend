@@ -1,4 +1,4 @@
-
+import type { Request, Response } from 'express'
 import { MailService } from 'api/mails/mails.service'
 import { Bind } from 'decorators'
 import { Logger } from 'api/logger'
@@ -9,6 +9,12 @@ import { StripeService } from 'api/stripe/stripe.service'
 import { NotFoundException, TransactionError } from 'exceptions'
 
 export class GiftsController {
+  private giftsService: GiftsService
+  private usersService: UsersService
+  private plansService: PlansService
+  private mailService: MailService
+  private logger: typeof Logger.Service
+
   constructor() {
     this.giftsService = new GiftsService()
     this.usersService = new UsersService()
@@ -18,28 +24,21 @@ export class GiftsController {
     this.logger = Logger.Service
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async create(req, res) {
+  async create(req: Request, res: Response): Promise<Response> {
     const { email, paymentMethod, requiresAction } = req.body
 
     const { planId } = req.query
 
-    const plan = await this.plansService.getOne({ id: planId })
+    const plan = await (this.plansService as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>).getOne({ id: planId })
 
-    /**
-     * Friends refers to the user sharing the gift.
-     */
-    const friend = await this.usersService.getOne({ id: req.user.id })
+    const friend = await this.usersService.getOne({ id: req.user!.id } as unknown as Parameters<typeof this.usersService.getOne>[0])
 
     if (friend && plan) {
       const gift = await this.giftsService.createTransactionableGift(
         {
-          gifter: friend,
-          plan,
+          gifter: friend as unknown as Record<string, unknown>,
+          plan: plan as unknown as Record<string, unknown>,
           user: {
             email
           },
@@ -55,16 +54,16 @@ export class GiftsController {
       }
 
       await this.mailService.sendMail({
-        to: gift.gift.email,
+        to: (gift.gift as Record<string, unknown>).email as string,
         subject: res.__('mails.services.gift.to.subject'),
-        text: res.__('mails.services.gift.to.text', { user: gift.email }),
+        text: res.__('mails.services.gift.to.text', { user: gift.email } as Record<string, unknown>),
         html: `
         <div>
         
           <p>
             ${res.__('mails.services.gift.to.html.invite', {
-              user: friend.firstName
-            })}
+              user: (friend as unknown as Record<string, unknown>).firstName
+            } as Record<string, unknown>)}
             
             ${res.__('mails.services.gift.to.html.steps.1')}
             ${res.__('mails.services.gift.to.html.steps.2')}
@@ -80,14 +79,14 @@ export class GiftsController {
           ${res.__('mails.services.gift.to.html.team')}
         </div>
       `
-      })
+      } as unknown as Parameters<typeof this.mailService.sendMail>[0])
 
       await this.mailService.sendMail({
-        to: friend.email,
+        to: (friend as unknown as Record<string, unknown>).email as string,
         subject: res.__('mails.services.gift.from.subject'),
         text: res.__('mails.services.gift.from.text', {
-          user: friend.firstName
-        }),
+          user: (friend as unknown as Record<string, unknown>).firstName
+        } as Record<string, unknown>),
         html: `
         <div>
           <p>
@@ -96,13 +95,13 @@ export class GiftsController {
           </p>
         </div>
       `
-      })
+      } as unknown as Parameters<typeof this.mailService.sendMail>[0])
 
       return res.status(201).json({
         message: 'Gift created succesfully',
         response: {
           ...gift,
-          intent: requiresAction ? undefined : StripeService.generatePaymentResponse(gift.intent)
+          intent: requiresAction ? undefined : StripeService.generatePaymentResponse(gift.intent as unknown as Parameters<typeof StripeService.generatePaymentResponse>[0])
         },
         statusCode: 201
       })
@@ -111,15 +110,11 @@ export class GiftsController {
     throw new NotFoundException(res.__('errors.User or plan not found'))
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async exchangeGift(req, res) {
+  async exchangeGift(req: Request, res: Response): Promise<Response> {
     const { code } = req.query
 
-    const gift = await this.giftsService.getOne({ serial: code })
+    const gift = await this.giftsService.getOne({ serial: code } as Record<string, unknown>)
     this.logger.debug('gift', gift)
 
     if (!gift) {
@@ -136,7 +131,7 @@ export class GiftsController {
       })
     }
 
-    const user = await this.usersService.getOne({ email: gift.email })
+    const user = await this.usersService.getOne({ email: gift.email } as unknown as Parameters<typeof this.usersService.getOne>[0])
     this.logger.debug('user', user)
 
     if (!user) {
@@ -145,8 +140,8 @@ export class GiftsController {
     }
 
     const userPackage = await this.giftsService.giftExchangeTransaction(
-      gift,
-      user
+      gift as unknown as Record<string, unknown>,
+      user as unknown as Record<string, unknown>
     )
 
     if (userPackage.transactionError) {

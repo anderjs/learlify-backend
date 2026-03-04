@@ -1,3 +1,5 @@
+import type { Router as ExpressRouter, RequestHandler } from 'express'
+import type { HttpConsumer } from '@types'
 import { Logger } from 'api/logger'
 import { Router } from 'decorators'
 import { isRunningOnProductionOrDevelopment } from 'functions'
@@ -10,36 +12,31 @@ import { pipe } from './gifts.pipe'
   route: '/gifts'
 })
 class GiftsRouter {
+  declare gifts: ExpressRouter
+  declare consumer: HttpConsumer
+  private controller: GiftsController
+  private logger: typeof Logger.Service
+
   constructor() {
     this.controller = new GiftsController()
     this.logger = Logger.Service
   }
 
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /gifts')
     }
 
-    /**
-     * @description
-     * Create a new gift
-     * @method POST
-     */
     this.gifts.post(
       '/',
-      [Middleware.authenticate, pipe.create, Middleware.usePipe],
-      Middleware.secure(this.controller.create)
+      [Middleware.authenticate, pipe.create, Middleware.usePipe] as RequestHandler[],
+      Middleware.secure(this.controller.create) as RequestHandler
     )
 
-    /**
-     * @description
-     * Exchange a gift
-     * @method PUT
-     */
     this.gifts.put(
       '/',
-      [Middleware.authenticate, pipe.exchange, Middleware.usePipe],
-      Middleware.secure(this.controller.exchangeGift)
+      [Middleware.authenticate, pipe.exchange, Middleware.usePipe] as RequestHandler[],
+      Middleware.secure(this.controller.exchangeGift) as RequestHandler
     )
 
     return this.consumer

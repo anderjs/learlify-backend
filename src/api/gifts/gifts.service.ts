@@ -7,16 +7,13 @@ import { ConfigService } from 'api/config/config.service'
 import Gift from 'api/gifts/gifts.model'
 import User from 'api/users/users.model'
 import Package from 'api/packages/packages.model'
-
-/**
- * @typedef {Object} TransactionableGift
- * @property {{ id?: number, email?: string, firstName?: string, lastName?: string  }} gifter
- * @property {{ id?: number, email?: string, firstName?: string, lastName?: string  }} user
- * @property {{ id?: number }} plan
- * @property {{ paymentMethodId?: string }} stripe
- */
+import type { TransactionableGiftInput, GiftGetOneParams, GiftUpdateInput } from './gifts.types'
 
 export class GiftsService {
+  private stripeService: StripeService
+  private configService: ConfigService
+  private logger: typeof Logger.Service
+
   constructor() {
     this.stripeService = new StripeService()
     this.configService = new ConfigService()
@@ -24,22 +21,13 @@ export class GiftsService {
     this.createTransactionableGift = this.createTransactionableGift.bind(this)
   }
 
-  /**
-   * @public
-   * @returns {string}
-   */
-  createRandomGiftCode() {
-    const { provider } = this.configService
+  createRandomGiftCode(): string {
+    const { provider } = this.configService as unknown as Record<string, Record<string, unknown>>
 
     return `${provider.uniqid}${randomUUID()}`
   }
 
-  /**
-   * @param {TransactionableGift} giftInfo
-   * @param {boolean} requiresAction
-   * @returns {Promise<Gift>}
-   */
-  async createTransactionableGift(giftInfo, requiresAction = false) {
+  async createTransactionableGift(giftInfo: TransactionableGiftInput, requiresAction = false): Promise<Record<string, unknown>> {
     const { gifter, user, plan, stripe } = giftInfo
 
     try {
@@ -52,28 +40,30 @@ export class GiftsService {
           lastName: gifter.lastName,
           source: stripe.source,
           stripeCustomerId: gifter.stripeCustomerId
-        })
+        } as unknown as Parameters<typeof this.stripeService.addCustomer>[0])
 
         this.logger.debug('customer', customer)
 
-        if (!customer.exist) {
-          await User.query(trx).patchAndFetchById(gifter.id, {
-            stripeCustomerId: customer.membership.id
-          })
+        if (!(customer as unknown as Record<string, unknown>).exist) {
+          await User.query(trx).patchAndFetchById(gifter.id as number, {
+            stripeCustomerId: ((customer as unknown as Record<string, unknown>).membership as Record<string, unknown>).id
+          } as unknown as Record<string, unknown>)
         }
 
 
         if (requiresAction) {
-          const intent = await this.stripeService.confirmIntentPayment(giftInfo.stripe.paymentMethodId)
+          const intent = await this.stripeService.confirmIntentPayment(giftInfo.stripe.paymentMethodId as string)
 
           this.logger.debug('intent', intent)
+
+          const serial = this.createRandomGiftCode()
 
           const gift = await Gift.query(trx).insertAndFetch({
             email: user.email,
             planId: plan.id,
             gifter: gifter.id,
             serial: serial
-          })
+          } as unknown as Record<string, unknown>)
 
           return {
             gift,
@@ -86,32 +76,31 @@ export class GiftsService {
           amount: plan.price,
           currency: plan.currency,
           name: plan.name,
-          customer: customer.exist
+          customer: (customer as unknown as Record<string, unknown>).exist
             ? gifter.stripeCustomerId
-            : customer.membership.id
-        })
+            : ((customer as unknown as Record<string, unknown>).membership as Record<string, unknown>).id
+        } as unknown as Parameters<typeof this.stripeService.addIntentPayment>[0])
 
         this.logger.debug('intent', intent)
 
 
         const response = StripeService.generatePaymentResponse(intent)
 
-        if (response.requiresAction) {
+        if ((response as unknown as Record<string, unknown>).requiresAction) {
           return {
             gift: null,
             intent
           }
         }
 
+        const serial = this.createRandomGiftCode()
+
         const gift = await Gift.query(trx).insertAndFetch({
           email: user.email,
           planId: plan.id,
           gifter: gifter.id,
           serial: serial
-        })
-
-
-        const serial = this.createRandomGiftCode()
+        } as unknown as Record<string, unknown>)
 
         this.logger.debug('serial', serial)
 
@@ -123,7 +112,7 @@ export class GiftsService {
         }
       })
 
-      return returnValue
+      return returnValue as unknown as Record<string, unknown>
     } catch (error) {
       this.logger.error('createTransactionableGift Error', error)
 
@@ -134,18 +123,13 @@ export class GiftsService {
     }
   }
 
-  /**
-   * @param {Object} gift
-   * @param {Object} user
-   * @returns {Promise<Gift>}
-   */
-  async giftExchangeTransaction(gift, user) {
+  async giftExchangeTransaction(gift: Record<string, unknown>, user: Record<string, unknown>): Promise<Record<string, unknown>> {
     try {
       const transaction = await Gift.knex().transaction(async trx => {
         this.logger.debug('giftExchangeTransaction Start')
 
         const giftUpdate = await Gift.query(trx)
-          .patchAndFetchById(gift.id, {
+          .patchAndFetchById(gift.id as number, {
             expired: true
           })
           .withGraphFetched({
@@ -154,20 +138,22 @@ export class GiftsService {
 
         this.logger.debug('giftUpdate', giftUpdate)
 
+        const plans = (giftUpdate as unknown as Record<string, unknown>).plans as Record<string, unknown>
+
         const expirationDate = moment()
-          .tz(this.configService.provider.TZ)
+          .tz((this.configService as unknown as Record<string, Record<string, unknown>>).provider.TZ as string)
           .add(30, 'days')
           .format('YYYY-MM-DD')
 
         const userPackage = await Package.query(trx).insertAndFetch({
-          total: giftUpdate.plans.price,
-          speakings: giftUpdate.plans.speaking,
-          writings: giftUpdate.plans.writing,
+          total: plans.price,
+          speakings: plans.speaking,
+          writings: plans.writing,
           isActive: true,
-          planId: giftUpdate.plans.id,
+          planId: plans.id,
           expirationDate,
           userId: user.id
-        })
+        } as unknown as Record<string, unknown>)
         this.logger.debug('userPackage', userPackage)
 
         this.logger.debug('giftExchangeTransaction End')
@@ -175,7 +161,7 @@ export class GiftsService {
         return userPackage
       })
 
-      return transaction
+      return transaction as unknown as Record<string, unknown>
     } catch (error) {
       this.logger.error('giftExchangeTransaction Error', error)
 
@@ -186,31 +172,23 @@ export class GiftsService {
     }
   }
 
-  /**
-   * @param {Source} gift
-   * @returns {Promise<Gift>}
-   */
-  getOne(gift) {
+  getOne(gift: GiftGetOneParams): Promise<Gift | undefined> {
     if (gift.id) {
-      return Gift.query().findById(gift.id).select(['id', 'email', 'expired'])
+      return Gift.query().findById(gift.id).select(['id', 'email', 'expired']) as unknown as Promise<Gift | undefined>
     }
 
-    return Gift.query().findOne(gift).select(['id', 'email', 'expired'])
+    return Gift.query().findOne(gift).select(['id', 'email', 'expired']) as unknown as Promise<Gift | undefined>
   }
 
-  /**
-   * @param {Source} gift
-   * @returns {Promise<Gift>}
-   */
-  updateOne({ id, ...data }) {
+  updateOne({ id, ...data }: GiftUpdateInput): Promise<Gift> {
     if (id) {
       return Gift.query().patchAndFetchById(id, data).withGraphFetched({
         plans: true
-      })
+      }) as unknown as Promise<Gift>
     }
 
-    return Gift.query().patchAndFetch(data).withGraphFetched({
+    return Gift.query().patchAndFetch(data as unknown as Record<string, unknown>).withGraphFetched({
       plans: true
-    })
+    }) as unknown as Promise<Gift>
   }
 }
