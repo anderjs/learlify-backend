@@ -2,9 +2,9 @@ import Redlock from 'redlock'
 import { getRedisClient } from 'config/redis'
 import logger from 'utils/logger'
 
-let redlock = null
+let redlock: Redlock | null = null
 
-function getRedlock() {
+function getRedlock(): Redlock | null {
   if (redlock) return redlock
 
   const client = getRedisClient()
@@ -26,14 +26,18 @@ function getRedlock() {
   return redlock
 }
 
-async function lockAndRun(key, ttlMs, fn) {
+async function lockAndRun(
+  key: string,
+  ttlMs: number,
+  fn: () => unknown | Promise<unknown>
+): Promise<unknown | void> {
   const lock = getRedlock()
 
   if (!lock) {
     return fn()
   }
 
-  let acquired = null
+  let acquired: Awaited<ReturnType<Redlock['acquire']>> | null = null
 
   try {
     acquired = await lock.acquire([`lock:${key}`], ttlMs)
@@ -47,10 +51,13 @@ async function lockAndRun(key, ttlMs, fn) {
   } finally {
     try {
       await acquired.release()
-    } catch (releaseErr) {
+    } catch (releaseErr: unknown) {
+      const message =
+        releaseErr instanceof Error ? releaseErr.message : String(releaseErr)
+
       logger.warn('cronLock.release.failed', {
         key,
-        message: releaseErr.message
+        message
       })
     }
   }

@@ -5,19 +5,75 @@ import Classes from 'api/classes/classes.model'
 import Meetings from 'api/meetings/meetings.model'
 import moment from 'moment-timezone'
 
-/**
- * @typedef {Object} Source
- * @property {Date} startDate
- * @property {Date} endDate
- * @property {number} langId
- * @property {number} userId
- * @property {number} optionId
- */
+type DateFilter = {
+  now?: string
+  notExpired?: boolean
+  expire?: string
+  startDate?: string
+  endDate?: string
+}
+
+type Source = {
+  id?: unknown
+  startDate?: unknown
+  endDate?: unknown
+  langId?: unknown
+  userId?: unknown
+  optionId?: unknown
+  date?: DateFilter
+  notified?: unknown
+  taken?: unknown
+  streaming?: unknown
+  [key: string]: unknown
+}
+
+type ScheduleProperties = {
+  clientAttributes: string[]
+  endDate: string
+  startDate: string
+  anticipatedStartDate: string
+}
+
+type RelationShipConfig = {
+  create: unknown
+  getAll: unknown
+  getAllExpiration: unknown
+}
+
+type LooseQueryBuilder = {
+  insertAndFetch(value: unknown): LooseQueryBuilder
+  withGraphFetched(graph: unknown): LooseQueryBuilder
+  select(columns: string[]): LooseQueryBuilder
+  where(...args: unknown[]): LooseQueryBuilder
+  orWhere(...args: unknown[]): LooseQueryBuilder
+  andWhere(...args: unknown[]): LooseQueryBuilder
+  skipUndefined(): LooseQueryBuilder
+  findOne(value: unknown): LooseQueryBuilder
+  patchAndFetchById(id: unknown, value: unknown): LooseQueryBuilder
+  patchAndFetch(value: unknown): LooseQueryBuilder
+  deleteById(id: unknown): LooseQueryBuilder
+  delete(): LooseQueryBuilder
+}
+
+type LooseModel = {
+  query(trx?: unknown): LooseQueryBuilder
+  knex(): {
+    transaction<T>(callback: (trx: unknown) => Promise<T>): Promise<T>
+  }
+}
 
 const relationShip = Symbol('relationShip')
 
+const ScheduleModel = Schedule as unknown as LooseModel
+const ClassesModel = Classes as unknown as Pick<LooseModel, 'query'>
+const MeetingsModel = Meetings as unknown as Pick<LooseModel, 'query'>
+
 @Injectable
 class ScheduleService {
+  props: ScheduleProperties
+  logger: typeof Logger.Service
+  [relationShip]: RelationShipConfig
+
   constructor() {
     this.props = {
       clientAttributes: [
@@ -67,13 +123,10 @@ class ScheduleService {
     this.logger = Logger.Service
   }
 
-  /**
-   * @param {Schedule} schedule
-   * @param {string} timezone
-   */
-  static scheduleTimezoneConversion(schedule, timezone) {
+  static scheduleTimezoneConversion<
+    T extends { startDate: string; endDate: string }
+  >(schedule: T, timezone: string): T {
     const logger = Logger.Service
-
     const format = 'YYYY-MM-DD HH:mm:ss'
 
     if (schedule) {
@@ -90,41 +143,30 @@ class ScheduleService {
         endDate: moment(schedule.endDate).tz(timezone, false).format()
       })
 
-      return output
+      return output as T
     }
+
     return schedule
   }
 
-  /**
-   * @param {Source} options
-   * @returns {Promise<Schedule>}
-   */
-  create(options) {
+  create(options: Source): unknown {
     const { create } = this[relationShip]
 
-    return Schedule.query().insertAndFetch(options).withGraphFetched(create)
+    return ScheduleModel.query()
+      .insertAndFetch(options)
+      .withGraphFetched(create)
   }
 
-  /**
-   * @param {number} id
-   */
-  exist(id) {
-    return Schedule.query().select(['id']).where({ id })
+  exist(id: unknown): unknown {
+    return ScheduleModel.query().select(['id']).where({ id })
   }
 
-  /**
-   * @param {number} id
-   */
-  remove(id) {
-    return Schedule.query().deleteById(id)
+  remove(id: unknown): unknown {
+    return ScheduleModel.query().deleteById(id)
   }
 
-  /**
-   * @param {Source} options
-   * @returns {Promise<Schedule []>}
-   */
   @Bind
-  getAll({ date, ...options }) {
+  getAll({ date, ...options }: Source): unknown {
     const {
       clientAttributes,
       anticipatedStartDate,
@@ -135,7 +177,7 @@ class ScheduleService {
     const { getAll } = this[relationShip]
 
     if (date) {
-      const whereOptions = {}
+      const whereOptions: Record<string, unknown> = {}
 
       if ('userId' in options) {
         whereOptions.userId = options.userId
@@ -156,7 +198,7 @@ class ScheduleService {
       if (date.now) {
         this.logger.info(`Schedule by now: ${date.now}`, { data: true })
         return date.notExpired
-          ? Schedule.query()
+          ? ScheduleModel.query()
               .where(anticipatedStartDate, '<=', date.now)
               .orWhere(startDate, '<=', date.now)
               .andWhere(endDate, '>', date.now)
@@ -164,7 +206,7 @@ class ScheduleService {
               .withGraphFetched(getAll)
               .select(clientAttributes)
               .skipUndefined()
-          : Schedule.query()
+          : ScheduleModel.query()
               .where(anticipatedStartDate, '<=', date.now)
               .orWhere(startDate, '<=', date.now)
               .andWhere(endDate, '>', date.now)
@@ -177,25 +219,21 @@ class ScheduleService {
       if (date.expire) {
         this.logger.info(`Schedule by expire: ${date.expire}`)
 
-        return Schedule.query()
+        return ScheduleModel.query()
           .where(endDate, '<=', date.expire)
           .andWhere({ streaming: true })
           .withGraphFetched(getAll)
       }
 
-      /**
-       * @description
-       * If userId options and langId options are present we should only fetch that.
-       */
       return options
-        ? Schedule.query()
+        ? ScheduleModel.query()
             .where(startDate, '>', date.startDate)
             .andWhere(endDate, '<', date.endDate)
             .andWhere(whereOptions)
             .select(clientAttributes)
             .withGraphFetched(getAll)
             .skipUndefined()
-        : Schedule.query()
+        : ScheduleModel.query()
             .where(startDate, '>', date.startDate)
             .andWhere(endDate, '<', date.endDate)
             .select(clientAttributes)
@@ -203,72 +241,61 @@ class ScheduleService {
             .skipUndefined()
     }
 
-    return Schedule.query()
+    return ScheduleModel.query()
       .withGraphFetched(getAll)
       .where(options)
       .select(clientAttributes)
   }
 
-  /**
-   * @param {Source} schedule
-   * @returns {Promise<Schedule>}
-   */
   @Bind
-  getOne(schedule) {
+  getOne(schedule: Source): unknown {
     const { getAll } = this[relationShip]
 
-    return Schedule.query()
-      .findOne(schedule)
-      .withGraphFetched(getAll)
-      .skipUndefined()
+    return ScheduleModel.query().findOne(schedule).withGraphFetched(getAll).skipUndefined()
   }
 
-  /**
-   * @param {Source} schedule
-   * @returns {Promise<Schedule>}
-   */
-  updateOne(schedule) {
+  updateOne(schedule: Source): unknown {
     if (schedule.id) {
-      return Schedule.query().patchAndFetchById(schedule.id, {
+      return ScheduleModel.query().patchAndFetchById(schedule.id, {
         ...schedule
       })
     }
 
-    return Schedule.query().patchAndFetch(schedule)
+    return ScheduleModel.query().patchAndFetch(schedule)
   }
 
-  /**
-   * @param {Source} schedule
-   */
   @Bind
-  deleteBy({ expire, ...options }) {
+  deleteBy({ expire, ...options }: Source & { expire?: string }): unknown {
     const { endDate } = this.props
 
     if (expire) {
-      return Schedule.query()
+      return ScheduleModel.query()
         .delete()
         .where(endDate, '<', expire)
         .andWhere(options)
     }
+
+    return undefined
   }
 
-  /**
-   * @param {Source} source
-   * @returns {Promise<Schedule>}
-   */
-  async expireClassRoomAndUpdate(source) {
-    const transaction = await Schedule.knex().transaction(async trx => {
+  async expireClassRoomAndUpdate(source: { id: unknown }): Promise<unknown> {
+    const transaction = await ScheduleModel.knex().transaction(async trx => {
       try {
-        const schedule = await Schedule.query(trx)
+        const schedule = (await ScheduleModel.query(trx)
           .patchAndFetchById(source.id, {
             streaming: false
           })
-          .withGraphFetched({ classes: true })
+          .withGraphFetched({ classes: true })) as {
+          classes?: {
+            id: unknown
+          }
+          [key: string]: unknown
+        }
 
         this.logger.debug('expire', schedule)
 
         if (schedule.classes) {
-          const classroom = await Classes.query(trx).patchAndFetchById(
+          const classroom = await ClassesModel.query(trx).patchAndFetchById(
             schedule.classes.id,
             {
               expired: true
@@ -284,22 +311,19 @@ class ScheduleService {
         return {
           schedule
         }
-      } catch (err) {
+      } catch (err: unknown) {
         this.logger.error('expireClassRoomTransaction', err)
 
-        throw new Error(err)
+        throw new Error(err as string)
       }
     })
 
     return transaction
   }
 
-  /**
-   * @param {number} user
-   */
   @Bind
-  async getStream(user) {
-    return Meetings.query()
+  async getStream(user: unknown): Promise<unknown> {
+    return MeetingsModel.query()
       .withGraphFetched({
         classes: {
           schedule: {

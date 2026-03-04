@@ -1,3 +1,4 @@
+import type { Server, Socket as SocketIO } from 'socket.io'
 import { Bind } from 'decorators'
 import { Logger } from 'api/logger'
 import { UsersService } from 'api/users/users.service'
@@ -7,102 +8,115 @@ import config from '../config'
 import ROOMS from './rooms'
 import * as EVENT from './events'
 
+type SocketModule = new () => {
+  main?: () => void
+}
+
+type SessionRoom = {
+  name: string
+}
+
+type SessionMeeting = {
+  classes: SessionRoom[]
+}
+
+type UserAssertPayload = {
+  id: number
+  email: string
+}
+
+type SocketWithUser = SocketIO & {
+  user?: unknown
+}
+
 export class WebSockets {
-  /**
-   * @param {{ stream: import('socket.io').Server, modules: [] }}
-   */
-  constructor({ stream, modules }) {
+  stream: Server
+  logger: typeof Logger.Service
+  users: UsersService
+  meetings: MeetingsService
+  modules: SocketModule[]
+
+  constructor({
+    stream,
+    modules
+  }: {
+    stream: Server
+    modules: SocketModule[]
+  }) {
     this.stream = stream
-
     this.logger = Logger.Service
-
     this.users = new UsersService()
-
     this.meetings = new MeetingsService()
-
     this.modules = modules || []
   }
 
   @Bind
-  connected(id) {
+  connected(id: string): string {
     return 'A client has joining to socket '.concat(id)
   }
 
   @Bind
-  disconnected(id) {
+  disconnected(id: string): string {
     return 'A client has been disconnected '.concat(id)
   }
 
-  getSessionName(session) {
+  getSessionName(session: SessionMeeting): string {
     const [room] = session.classes
 
     return room.name
   }
-  /**
-   * @param {[]} modules
-   */
+
   @Bind
-  main() {
+  main(): void {
     this.logger.info('WebSockets Service Running')
 
-    this.stream.use((socket, next) => {
-      const token =
+    this.stream.use((socket: SocketIO, next: (err?: Error) => void) => {
+      const tokenCandidate =
         socket.handshake.auth?.token || socket.handshake.query?.token
 
-      if (!token) {
+      if (!tokenCandidate) {
         return next(new Error('unauthorized'))
       }
 
       jwt.verify(
-        token,
-        config.JWT_SECRET,
+        String(tokenCandidate),
+        config.JWT_SECRET as string,
         { algorithms: ['HS256'] },
-        (err, decoded) => {
+        (err: unknown, decoded: unknown) => {
           if (err) {
             return next(new Error('unauthorized'))
           }
 
-          socket.user = decoded
+          const socketWithUser = socket as SocketWithUser
+          socketWithUser.user = decoded
           next()
         }
       )
     })
 
-    /**
-     * @description
-     * From the root we can succesfully connect all modules from socket io, to make good design patterns.
-     */
     this.modules.forEach(Module => {
       const module = new Module()
 
       if ('main' in module) {
-        module.main()
+        module.main?.()
       }
     })
-    /**
-     * @author anderjs
-     * @description
-     * @see https://socket.io/get-started/chat/
-     */
-    this.stream.on(EVENT.CONNECTION, socket => {
+
+    this.stream.on(EVENT.CONNECTION, (socket: SocketIO) => {
       const message = this.connected(socket.id)
 
       this.logger.info(message)
 
       socket.on(EVENT.DISCONNECT, () => {
-        const message = this.disconnected(socket.id)
-        this.logger.info(message)
+        const disconnectedMessage = this.disconnected(socket.id)
+        this.logger.info(disconnectedMessage)
       })
 
       socket.on(EVENT.DISCONNECTING, () => {
         this.logger.info('socketRooms', [...socket.rooms])
       })
 
-      /**
-       * @alias
-       * WebSockets Authentication on the server.
-       */
-      socket.on(EVENT.USER_ASSERT, async user => {
+      socket.on(EVENT.USER_ASSERT, async (user: UserAssertPayload) => {
         try {
           const email = await this.users.isAvailable({ email: user.email })
 
@@ -111,13 +125,9 @@ export class WebSockets {
 
             socket.join(user.email)
 
-            /**
-             * @description
-             * Getting values from meetings.
-             */
-            const rooms = await this.meetings.getActiveMeetings({
+            const rooms = (await this.meetings.getActiveMeetings({
               userId: user.id
-            })
+            })) as unknown as SessionMeeting[]
 
             this.logger.info(
               'rooms',
@@ -142,16 +152,16 @@ export class WebSockets {
               this.logger.info(
                 `${user.email} with socket.id ${socket.id} has joining tom ${ROOMS.CLASSROOM}`
               )
-
-              /**
-               * @description
-               * Sending event of joining to the user.
-               */
             }
           }
-        } catch (err) {
-          this.logger.error(err.name)
-          this.logger.error(err.stack)
+        } catch (err: unknown) {
+          const error = err as {
+            name?: string
+            stack?: string
+          }
+
+          this.logger.error(String(error.name))
+          this.logger.error(String(error.stack))
         }
       })
 
@@ -162,7 +172,7 @@ export class WebSockets {
   }
 
   @Bind
-  emitToRoom(room, event, ...args) {
+  emitToRoom(room: string, event: string, ...args: unknown[]): void {
     this.stream.to(room).emit(event, ...args)
   }
 }

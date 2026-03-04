@@ -1,19 +1,23 @@
-import Joi from 'joi'
+import Joi, { type SchemaLike, type SchemaMap } from 'joi'
+
+type ValidatorType = 'string' | 'number' | 'boolean'
+
+type TransformParams = {
+  value?: unknown
+  type: ValidatorType
+}
+
+type PipeValue = {
+  value: number | string | boolean
+  type: ValidatorType
+}
 
 export class Validator {
-  /**
-   * @param {{}} body
-   * @param {SchemaLike} schemaLike
-   * @returns {Promise<void>}
-   */
-  static schema(body, schemaLike) {
+  static schema(body: unknown, schemaLike: SchemaLike): unknown {
     return Joi.validate(body, schemaLike)
   }
 
-  /**
-   * @param {SchemaMap} keys
-   */
-  static createSchema(keys) {
+  static createSchema(keys: SchemaMap): unknown {
     return Joi.object().keys(keys)
   }
 
@@ -21,7 +25,7 @@ export class Validator {
     return Joi
   }
 
-  static get types() {
+  static get types(): Record<ValidatorType, ValidatorType> {
     return {
       number: 'number',
       string: 'string',
@@ -29,33 +33,29 @@ export class Validator {
     }
   }
 
-  /**
-   *
-   * @param {{ value?: any, type: 'string' | 'number' | 'boolean' }} params
-   */
-  static transform({ value, type }) {
+  static transform({ value, type }: TransformParams): PipeValue | PipeValue[] | unknown {
     const isArray = Array.isArray(value)
 
     switch (type) {
       case 'number':
         return isArray
           ? value.map(pipe => ({
-              value: Number.parseInt(pipe),
+              value: Number.parseInt(pipe as unknown as string),
               type: 'number'
             }))
           : {
-              value: Number.parseInt(value),
+              value: Number.parseInt(value as unknown as string),
               type: 'number'
             }
 
       case 'string':
         return isArray
           ? value.map(pipe => ({
-              value: pipe.toString(),
+              value: (pipe as { toString(): string }).toString(),
               type: 'string'
             }))
           : {
-              value: value.toString(),
+              value: (value as { toString(): string }).toString(),
               type: 'string'
             }
 
@@ -70,14 +70,15 @@ export class Validator {
     }
   }
 
-  static through({ value, type }) {
+  static through({ value, type }: TransformParams): boolean | undefined {
     const isArray = Array.isArray(value)
 
     if (type === 'number') {
       return isArray
-        ? value.every(
-            pipe => typeof pipe.value === 'number' && !Number.isNaN(pipe.value)
-          )
+        ? value.every(pipe => {
+            const parsed = (pipe as { value: unknown }).value
+            return typeof parsed === 'number' && !Number.isNaN(parsed)
+          })
         : typeof value === 'number' && !Number.isNaN(value)
     }
 
@@ -88,5 +89,7 @@ export class Validator {
     if (type === 'boolean') {
       return typeof value === 'boolean'
     }
+
+    return undefined
   }
 }

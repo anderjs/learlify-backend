@@ -1,21 +1,38 @@
-import { Model } from 'objection'
+import { Model, type JSONSchema, type Modifiers, type RelationMappings, type QueryBuilder } from 'objection'
 import Classes from 'api/classes/classes.model'
 import Language from 'api/languages/languages.model'
 import User from 'api/users/users.model'
 
 class Schedule extends Model {
-  static get tableName() {
+  id!: number
+  langId!: number
+  userId!: number
+  modelId!: number
+  anticipatedStartDate!: string
+  startDate!: string
+  endDate!: string
+  taken?: boolean
+  notified?: boolean
+  notes?: string
+  streaming?: boolean
+  classes?: {
+    id: number
+  }
+  teacher?: {
+    email: string
+    firstName: string
+    lastName: string
+  }
+
+  static get tableName(): string {
     return 'schedule'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  /**
-   * @returns {import('objection').JsonSchema}
-   */
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
 
@@ -30,10 +47,7 @@ class Schedule extends Model {
     }
   }
 
-  /**
-   * @returns {import('objection').RelationMappings}
-   */
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       classes: {
         relation: Model.HasOneRelation,
@@ -64,12 +78,9 @@ class Schedule extends Model {
     }
   }
 
-  /**
-   * @returns {import ('objection').Modifiers}
-   */
-  static get modifiers() {
+  static get modifiers(): Modifiers {
     return {
-      withClass(builder) {
+      withClass(builder: QueryBuilder<Schedule, Schedule[]>) {
         return builder
           .select([
             'id',
@@ -89,15 +100,15 @@ class Schedule extends Model {
           })
       },
 
-      withName(builder) {
+      withName(builder: QueryBuilder<Schedule, Schedule[]>) {
         return builder.select(['email', 'firstName', 'lastName'])
       },
 
-      activeFields(builder) {
+      activeFields(builder: QueryBuilder<Schedule, Schedule[]>) {
         return builder.select(['id', 'taken', 'notified', 'streaming'])
       },
 
-      stream(builder) {
+      stream(builder: QueryBuilder<Schedule, Schedule[]>) {
         return builder.where({ streaming: true })
       }
     }

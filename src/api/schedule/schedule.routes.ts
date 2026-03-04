@@ -1,6 +1,8 @@
+import type { Router as ExpressRouter } from 'express'
 import { Logger } from 'api/logger'
 import { Middleware } from 'middlewares'
 import { Router, Readonly } from 'decorators'
+import type { HttpConsumer } from '@types'
 import { ScheduleController } from './schedule.controller'
 import { GlobalPipe } from 'pipe'
 import { pipe } from './schedule.pipe'
@@ -12,30 +14,27 @@ import { isRunningOnProductionOrDevelopment } from 'functions'
   route: '/schedule'
 })
 class Schedule {
+  controller: ScheduleController
+  logger: typeof Logger.Service
+  schedules!: ExpressRouter
+  consumer!: HttpConsumer
+
   constructor() {
     this.controller = new ScheduleController()
     this.logger = Logger.Service
   }
 
-  /**
-   * @returns {HttpConsumer}
-   */
   @Readonly
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /schedule')
     }
 
-    /**
-     * @description
-     * Get all schedules with his retrieve parameters.
-     * @method GET
-     */
     this.schedules.get(
       '/',
       [
         Middleware.authenticate,
-        pipe.getAll,
+        pipe.getAll as never,
         Middleware.usePipe,
         Middleware.timezone
       ],
@@ -44,19 +43,10 @@ class Schedule {
 
     this.schedules.get(
       '/stream',
-      [
-        Middleware.authenticate,
-        Middleware.timezone
-      ],
+      [Middleware.authenticate, Middleware.timezone],
       Middleware.secure(this.controller.earlyStream)
     )
 
-    /**
-     * @description
-     * Deletes a resource from schedule.
-     * Only can be consumed
-     * @method DELETE
-     */
     this.schedules.delete(
       '/:id',
       [
@@ -68,11 +58,6 @@ class Schedule {
       Middleware.secure(this.controller.remove)
     )
 
-    /**
-     * @description
-     * Creates a new schedule assigning his startDate and endDate.
-     * @method POST
-     */
     this.schedules.post(
       '/',
       [

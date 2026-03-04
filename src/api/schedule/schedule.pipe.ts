@@ -2,6 +2,8 @@ import { checkSchema, param } from 'express-validator'
 import { ScheduleService } from './schedule.service'
 
 class Schedule {
+  service: ScheduleService
+
   constructor() {
     this.service = new ScheduleService()
   }

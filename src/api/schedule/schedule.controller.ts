@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express'
 import { Bind } from 'decorators'
 import { ConfigService } from 'api/config/config.service'
 import { UsersService } from 'api/users/users.service'
@@ -7,7 +8,44 @@ import { NotFoundException, ForbiddenException } from 'exceptions'
 import { Logger } from 'api/logger'
 import moment from 'moment'
 
+type ScheduleControllerProps = {
+  daysOffset: number
+  format: string
+}
+
+type CreatedSchedule = {
+  teacher: {
+    email: string
+    firstName: string
+  }
+  startDate: string
+  enDate: string
+  [key: string]: unknown
+}
+
+type StreamSchedule = {
+  anticipatedStartDate: string
+  startDate: string
+  endDate: string
+  id: number
+}
+
+type StreamClass = {
+  schedule?: StreamSchedule
+}
+
+type StreamMeeting = {
+  classes: StreamClass[]
+}
+
 class ScheduleController {
+  configService: ConfigService
+  mailService: MailService
+  scheduleService: ScheduleService
+  usersService: UsersService
+  props: ScheduleControllerProps
+  logger: typeof Logger.Service
+
   constructor() {
     this.configService = new ConfigService()
     this.mailService = new MailService()
@@ -20,29 +58,18 @@ class ScheduleController {
     this.logger = Logger.Service
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async create(req, res) {
-    const data = req.body
-
+  async create(req: Request, res: Response): Promise<Response> {
+    const data = req.body as Record<string, unknown>
     const { format } = this.props
-
     const { provider } = this.configService
 
-    /**
-     * @description
-     * Classes starts before startDate with.
-     * AnticipatedStartDate.
-     */
-    const schedule = await this.scheduleService.create({
+    const schedule = (await this.scheduleService.create({
       ...data,
-      anticipatedStartDate: moment(data.startDate)
+      anticipatedStartDate: moment(data.startDate as never)
         .subtract(10, 'minutes')
         .format(format)
-    })
+    })) as CreatedSchedule
 
     await this.mailService.sendMail({
       from: provider.SENDGRID_APTIS_EMAIL,
@@ -73,27 +100,22 @@ class ScheduleController {
     })
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async getAll(req, res) {
+  async getAll(req: Request, res: Response): Promise<Response> {
     this.logger.debug('Timezone', { timezone: req.timezone })
 
     const { userId, langId } = req.query
-
     const { daysOffset, format } = this.props
 
     if (userId || langId) {
-      const schedules = await this.scheduleService.getAll({
+      const schedules = (await this.scheduleService.getAll({
         date: {
           startDate: moment().subtract(daysOffset, 'days').format(format),
           endDate: moment().add(daysOffset, 'days').format(format)
         },
         userId,
         langId
-      })
+      })) as Array<{ startDate: string; endDate: string }>
 
       this.logger.debug('Schedule', {
         total: schedules.length
@@ -102,18 +124,21 @@ class ScheduleController {
       return res.status(200).json({
         message: 'Schedule obtained successfully',
         response: schedules.map(schedule =>
-          ScheduleService.scheduleTimezoneConversion(schedule, req.timezone)
+          ScheduleService.scheduleTimezoneConversion(
+            schedule,
+            req.timezone as string
+          )
         ),
         statusCode: 200
       })
     }
 
-    const schedules = await this.scheduleService.getAll({
+    const schedules = (await this.scheduleService.getAll({
       date: {
         startDate: moment().subtract(daysOffset, 'days').format(format),
         endDate: moment().add(daysOffset, 'days').format(format)
       }
-    })
+    })) as Array<{ startDate: string; endDate: string }>
 
     this.logger.debug('Schedule', {
       total: schedules.length
@@ -122,23 +147,22 @@ class ScheduleController {
     return res.status(200).json({
       message: 'Schedule obtained successfully',
       response: schedules.map(schedule =>
-        ScheduleService.scheduleTimezoneConversion(schedule, req.timezone)
+        ScheduleService.scheduleTimezoneConversion(
+          schedule,
+          req.timezone as string
+        )
       ),
       statusCode: 200
     })
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async remove(req, res) {
+  async remove(req: Request, res: Response): Promise<Response> {
     const id = req.params.id
 
-    const schedule = await this.scheduleService.getOne({
+    const schedule = (await this.scheduleService.getOne({
       id
-    })
+    })) as { classes?: unknown }
 
     if (schedule.classes) {
       throw new ForbiddenException()
@@ -159,12 +183,11 @@ class ScheduleController {
     throw new NotFoundException(res.__('errors.Schedule Not Found'))
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
-  async update(req, res) {
-    const data = req.body
+  async update(req: Request, res: Response): Promise<Response> {
+    const data = req.body as {
+      id: unknown
+      [key: string]: unknown
+    }
 
     const schedule = await this.scheduleService.getOne({
       id: data.id
@@ -183,24 +206,18 @@ class ScheduleController {
     throw new NotFoundException(res.__('errors.Schedule Not Found'))
   }
 
-  /**
-   *
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async earlyStream(req, res) {
-    const user = req.user.id
+  async earlyStream(req: Request, res: Response): Promise<Response> {
+    const user = req.user!.id
 
-    const stream = await this.scheduleService.getStream(user)
+    const stream = (await this.scheduleService.getStream(user)) as StreamMeeting[]
 
     this.logger.info('stream', {
       stream: stream ? 'User has active meeting' : 'Inactive Meetings'
     })
 
-    const lastStreamActive = stream.find(({ classes }) => {
+    const lastStreamActive = stream.find(({ classes }: StreamMeeting) => {
       const [current] = classes
-
       const schedule = current.schedule
 
       if (schedule) {
@@ -211,14 +228,15 @@ class ScheduleController {
           moment().utc().isBetween(schedule.startDate, schedule.endDate)
         )
       }
-      return
+
+      return undefined
     })
 
     this.logger.info('lastStream', lastStreamActive)
 
     if (lastStreamActive) {
       const schedule = await this.scheduleService.getOne({
-        id: lastStreamActive.classes[0].schedule.id
+        id: lastStreamActive.classes[0].schedule!.id
       })
 
       return res.status(200).json({

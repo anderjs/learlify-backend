@@ -10,6 +10,10 @@ const jsonFormat = combine(
   json()
 )
 
+const runtimeConfig = config as unknown as {
+  disableLogs?: boolean
+}
+
 const logger = winston.createLogger({
   transports: [
     new DailyRotateFile({
@@ -24,7 +28,7 @@ const logger = winston.createLogger({
       maxFiles: '14d'
     }),
     new winston.transports.Console({
-      level: config.disableLogs ? 'error' : 'debug',
+      level: runtimeConfig.disableLogs ? 'error' : 'debug',
       handleExceptions: true,
       format: winston.format.combine(
         winston.format.colorize(),

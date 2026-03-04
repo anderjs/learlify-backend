@@ -27,8 +27,8 @@
       "lib/*": ["lib/*"],
       "decorators": ["decorators/index.d.ts"],
       "exceptions": ["exceptions/index.d.ts"],
-      "functions": ["functions/index.js"],
-      "modules": ["modules/index.js"],
+      "functions": ["functions/index.ts"],
+      "modules": ["modules/index.ts"],
       "@types": ["@types/index.d.ts"]
     }
   },
@@ -38,6 +38,7 @@
     "dist",
     "src/migrations",
     "src/seeds",
-    "src/scripts"
+    "src/scripts",
+    "src/__test__"
   ]
 }

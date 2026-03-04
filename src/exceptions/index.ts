@@ -1,8 +1,7 @@
 export class NotFoundException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message = message || 'Not Found Exception'
     this.statusCode = 404
@@ -10,10 +9,9 @@ export class NotFoundException extends Error {
 }
 
 export class BadRequestException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message = message || 'Bad Request Exception'
     this.statusCode = 400
@@ -21,10 +19,9 @@ export class BadRequestException extends Error {
 }
 
 export class InternalServerErrorException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message = message || 'Internal Server Error'
     this.statusCode = 500
@@ -32,10 +29,9 @@ export class InternalServerErrorException extends Error {
 }
 
 export class UnauthorizedException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message = message || 'Unauthorized'
     this.statusCode = 401
@@ -43,10 +39,7 @@ export class UnauthorizedException extends Error {
 }
 
 export class MisdirectedRequestException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  constructor(message?: string) {
     super(message)
     this.message =
       message ||
@@ -55,10 +48,9 @@ export class MisdirectedRequestException extends Error {
 }
 
 export class ConflictException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message =
       message ||
@@ -68,10 +60,12 @@ export class ConflictException extends Error {
 }
 
 export class ForbiddenException extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message) {
+  statusCode: number
+  response: {
+    requiredClientExpiration: boolean
+  }
+
+  constructor(message?: string) {
     super(message)
     this.message =
       message ||
@@ -84,7 +78,9 @@ export class ForbiddenException extends Error {
 }
 
 export class TransactionError extends Error {
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message = message || 'Transaction Error'
     this.statusCode = 500
@@ -92,8 +88,11 @@ export class TransactionError extends Error {
 }
 
 export class PaymentException extends Error {
-  constructor({ response } = { response: null }) {
-    super(({ response }))
+  statusCode: number
+  response?: unknown
+
+  constructor({ response }: { response?: unknown } = { response: null }) {
+    super({ response } as unknown as string)
     this.message = 'Payment required to access to request'
     this.response = response || undefined
     this.statusCode = 402
@@ -101,7 +100,9 @@ export class PaymentException extends Error {
 }
 
 export class GoneException extends Error {
-  constructor(message) {
+  statusCode: number
+
+  constructor(message?: string) {
     super(message)
     this.message = message || 'The resouce is no longer available.'
     this.statusCode = 410
