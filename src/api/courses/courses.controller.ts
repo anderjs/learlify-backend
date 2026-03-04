@@ -68,7 +68,7 @@ class CoursesController {
 
       if ((isSubscribed as unknown as Record<string, unknown>)?.isActive && (course.advances as unknown[]).length === 0) {
 
-        const content = await (this.advance as { create(data: unknown): Promise<unknown> }).create({
+        const content = await (this.advance as unknown as { create(data: unknown): Promise<unknown> }).create({
           content: {},
           courseId: course.id as number,
           userId: user.id
@@ -119,7 +119,7 @@ class CoursesController {
       throw new ConflictException()
     }
 
-    const ticket = await (this.advance as { create(data: unknown): Promise<unknown> }).create({
+    const ticket = await (this.advance as unknown as { create(data: unknown): Promise<unknown> }).create({
       userId: req.user!.id,
       courseId: course.id,
       content: {}

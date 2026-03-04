@@ -1,12 +1,18 @@
-import { Bind } from 'decorators'
 import { AdvanceService } from './advance.service'
 import { PlansService } from 'api/plans/plans.service'
 import { PackagesService } from 'api/packages/packages.service'
 import { NotFoundException, PaymentException } from 'exceptions'
 import { Logger } from 'api/logger'
 import feature from 'api/access/access.features'
+import type { Request, Response } from 'express'
 
 export class AdvanceController {
+  private defaultContent: Record<string, unknown>
+  private advanceService: AdvanceService
+  private plansService: PlansService
+  private packagesService: PackagesService
+  private logger: typeof Logger.Service
+
   constructor() {
     this.defaultContent = {}
     this.advanceService = new AdvanceService()
@@ -15,13 +21,8 @@ export class AdvanceController {
     this.logger = Logger.Service
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
-  @Bind
-  async create(req, res) {
-    const user = req.user
+  async create(req: Request, res: Response): Promise<Response> {
+    const user = req.user!
 
     const data = req.body
 
@@ -38,16 +39,11 @@ export class AdvanceController {
     })
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
-  @Bind
-  async getAll(req, res) {
-    const user = req.user
+  async getAll(req: Request, res: Response): Promise<Response> {
+    const user = req.user!
 
     const advance = await this.advanceService.getOne({
-      courseId: req.query.courseId,
+      courseId: req.query.courseId as unknown as number,
       userId: user.id
     })
 
@@ -76,13 +72,8 @@ export class AdvanceController {
     throw new PaymentException()
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
-  @Bind
-  async updateOne(req, res) {
-    const user = req.user
+  async updateOne(req: Request, res: Response): Promise<Response> {
+    const user = req.user!
 
     const data = req.body
 
@@ -97,7 +88,7 @@ export class AdvanceController {
       if (data.completed) {
         Object.assign(content, {
           [data.unit]: {
-            completed: content[data.unit] && content[data.unit].completed ? true : data.completed,
+            completed: content[data.unit] && (content[data.unit] as Record<string, unknown>).completed ? true : data.completed,
             general: data.last,
             last: true
           }
@@ -105,7 +96,7 @@ export class AdvanceController {
       } else {
         Object.assign(content, {
           [data.unit]: {
-            completed: content[data.unit] ? content[data.unit].completed : false,
+            completed: content[data.unit] ? (content[data.unit] as Record<string, unknown>).completed : false,
             general: data.last,
             last: true
           }
@@ -116,7 +107,7 @@ export class AdvanceController {
         if (key !== data.unit.toString()) {
           Object.assign(content, {
             [key]: {
-              ...content[key],
+              ...(content[key] as Record<string, unknown>),
               last: false
             }
           })

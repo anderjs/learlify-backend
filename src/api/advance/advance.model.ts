@@ -1,24 +1,24 @@
 import { Model } from 'objection'
+import type { JSONSchema, RelationMappings, ModelClass } from 'objection'
 
-/**
- * Relations.
- */
 import User from 'api/users/users.model'
 import Course from 'api/courses/courses.model'
 
 class Advance extends Model {
-  static get tableName() {
+  id!: number
+  userId!: number
+  courseId!: number
+  content!: Record<string, unknown>
+
+  static get tableName(): string {
     return 'advance'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  /**
-   * @returns {import('objection').JsonSchema}
-   */
-  static get jsonSchema() {
+  static get jsonSchema(): JSONSchema {
     return {
       type: 'object',
 
@@ -27,19 +27,16 @@ class Advance extends Model {
       properties: {
         id: { type: 'integer' },
         userId: { type: 'integer' },
-        courseId: { type: 'integer' }, 
+        courseId: { type: 'integer' },
         content: { type: 'object' }
       }
     }
   }
 
-  /**
-   * @returns {import('objection').RelationMappings}
-   */
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       users: {
-        modelClass: User,
+        modelClass: User as unknown as ModelClass<Model>,
         relation: Model.BelongsToOneRelation,
         join: {
           from: 'advance.userId',
@@ -48,7 +45,7 @@ class Advance extends Model {
       },
 
       courses: {
-        modelClass: Course,
+        modelClass: Course as unknown as ModelClass<Model>,
         relation: Model.HasManyRelation,
         join: {
           from: 'advance.courseId',

@@ -1,8 +1,7 @@
 import { checkSchema } from 'express-validator'
 
-
-export class Advance  {
-  get create () {
+export class AdvancePipe {
+  get create(): ReturnType<typeof checkSchema> {
     return checkSchema({
       courseId: {
         in: 'body',
@@ -11,10 +10,9 @@ export class Advance  {
       }
     })
   }
-  
-  
-  get update () {
-    return checkSchema ({
+
+  get update(): ReturnType<typeof checkSchema> {
+    return checkSchema({
       completed: {
         in: 'body',
         isBoolean: true,
@@ -36,4 +34,4 @@ export class Advance  {
   }
 }
 
-export const pipe = new Advance()
+export const pipe = new AdvancePipe()
