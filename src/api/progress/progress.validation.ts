@@ -1,13 +1,8 @@
 import { Logger } from 'api/logger'
 import validator from 'validator'
+import type { Request, Response, NextFunction } from 'express'
 
-/**
- * 
- * @param {import ('express').Request} req 
- * @param {import ('express').Response} res 
- * @param {import ('express').NextFunction} next 
- */
-export const updateProgressValidationJSON = (req, res, next) => {
+export const updateProgressValidationJSON = (req: Request, res: Response, next: NextFunction) => {
   if (req.body.files) {
     try {
       Logger.Service.info('progress', req.body.files)
@@ -20,15 +15,11 @@ export const updateProgressValidationJSON = (req, res, next) => {
         validator.isNumeric(context.score.toString()),
         validator.isUUID(context.uuid),
       ]
-      
-      /**
-       * @description
-       * If context feedback is valid
-       */
+
       if (context.feedback) {
         validations.push(typeof context.feedback === 'object')
       }
-      
+
       if (validations.every(valid => valid)) {
         Object.assign(req.body, context)
 
@@ -40,7 +31,7 @@ export const updateProgressValidationJSON = (req, res, next) => {
       Logger.Service.error('error', err)
 
       return res.status(400).json({
-        message: err.message,
+        message: (err as Error).message,
         statusCode: 400
       })
     }
@@ -48,4 +39,3 @@ export const updateProgressValidationJSON = (req, res, next) => {
 
   return next()
 }
-

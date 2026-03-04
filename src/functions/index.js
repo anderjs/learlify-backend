@@ -119,7 +119,7 @@ export function isRunningOnProductionOrDevelopment() {
 }
 
 /**
- * @param {{ data: JSON, parse: boolean, key: string }}
+ * @param {{ data: JSON, parse?: boolean, key: string }}
  */
 export function parseContent({ data, key }) {
   const content = JSON.parse(data)

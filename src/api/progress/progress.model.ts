@@ -1,19 +1,24 @@
 import { Model } from 'objection'
+import type { JSONSchema, RelationMappings, ModelClass, Modifiers, QueryBuilder } from 'objection'
 
 import User from 'api/users/users.model'
 import Exam from 'api/exams/exams.model'
 
 class Progress extends Model {
-  static get tableName() {
+  id!: number
+  examId?: number
+  userId?: number
+  data?: Record<string, unknown>
+
+  static get tableName(): string {
     return 'progress'
   }
 
-  static get idColumn() {
+  static get idColumn(): string {
     return 'id'
   }
 
-  static get jsonSchema() {
-    
+  static get jsonSchema(): JSONSchema {
     return {
       required: [],
       type: 'object',
@@ -26,11 +31,11 @@ class Progress extends Model {
     }
   }
 
-  static get relationMappings() {
+  static get relationMappings(): RelationMappings {
     return {
       exam: {
         relation: Model.HasOneRelation,
-        modelClass: Exam,
+        modelClass: Exam as unknown as ModelClass<Model>,
         join: {
           from: 'progress.examId',
           to: 'exams.id'
@@ -39,7 +44,7 @@ class Progress extends Model {
 
       user: {
         relation: Model.HasOneRelation,
-        modelClass: User,
+        modelClass: User as unknown as ModelClass<Model>,
         join: {
           from: 'progress.userId',
           to: 'users.id'
@@ -48,9 +53,9 @@ class Progress extends Model {
     }
   }
 
-  static get modifiers() {
+  static get modifiers(): Modifiers {
     return {
-      exam(builder) {
+      exam(builder: QueryBuilder<Model>) {
         return builder.select(['data'])
       }
     }

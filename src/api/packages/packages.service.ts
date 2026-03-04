@@ -299,7 +299,7 @@ export class PackagesService {
 
         await Progress.query(trx).patchAndFetchById(data.progress.id, {
           examJSON: data.progress.examJSON
-        })
+        } as unknown as Record<string, unknown>)
 
         const evaluation = await Evaluation.query(trx).insertAndFetch({
           userId: data.user.id,

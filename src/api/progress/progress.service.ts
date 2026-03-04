@@ -1,4 +1,5 @@
-import { Bind, Injectable } from 'decorators'
+import { Bind } from 'decorators'
+import { Logger } from 'api/logger'
 import { Categories } from 'metadata/categories'
 import { EvaluationCompleted, Feedback } from 'metadata/notifications'
 import { Socket } from 'modules'
@@ -17,20 +18,26 @@ import { ConfigService } from 'api/config/config.service'
 import { NotificationContext } from 'api/notifications/notification.context'
 import { NOTIFICATION } from 'gateways/events'
 
-/**
- * @typedef {Object} Source
- * @property {number} examId
- * @property {number} userId
- * @property {number} id
- */
+import type { ConfigurationProvider } from '@types'
+import type {
+  EagerRelationConfig,
+  FeedbackTransactionParams,
+  FeedbackTransactionResult,
+  UpdateScoreParams,
+  UpdateScoreResult
+} from './progress.types'
 
-const eagerRelationShip = Symbol('eagerRelationship')
-
-@Injectable
 class ProgressService {
+  clientAttributes: string[]
+  private eagerRelation: EagerRelationConfig
+  aws: AmazonWebServices
+  config: ConfigurationProvider
+  context: NotificationContext
+  logger: typeof Logger.Service
+
   constructor() {
     this.clientAttributes = ['id', 'data', 'createdAt', 'updatedAt']
-    this[eagerRelationShip] = {
+    this.eagerRelation = {
       create: {
         exam: true
       },
@@ -49,26 +56,19 @@ class ProgressService {
     this.aws = new AmazonWebServices()
     this.config = new ConfigService().provider
     this.context = new NotificationContext()
+    this.logger = Logger.Service
   }
 
-  /**
-   * @param {Source} progress
-   * @returns {Promise<Progress>}
-   */
   @Bind
-  create(progress) {
-    const relation = this[eagerRelationShip].create
+  create(progress: Record<string, unknown>) {
+    const relation = this.eagerRelation.create
 
     return Progress.query().insertAndFetch(progress).withGraphFetched(relation)
   }
 
-  /**
-   * @param {Source} progress
-   * @returns {Promise<Progress>}
-   */
   @Bind
-  getOne(progress) {
-    const relation = this[eagerRelationShip].getOne
+  getOne(progress: Record<string, unknown>) {
+    const relation = this.eagerRelation.getOne
 
     return Progress.query()
       .findOne(progress)
@@ -76,13 +76,9 @@ class ProgressService {
       .select(this.clientAttributes)
   }
 
-  /**
-   * @param {Source} progress
-   * @returns {Promise<Progress>}
-   */
   @Bind
-  updateOne(progress) {
-    const relation = this[eagerRelationShip].updateOne
+  updateOne(progress: Record<string, unknown> & { id: number }) {
+    const relation = this.eagerRelation.updateOne
 
     return Progress.query()
       .patchAndFetchById(progress.id, progress)
@@ -90,20 +86,16 @@ class ProgressService {
   }
 
   @Bind
-  async createFeedbackTransaction({ applySubscriptionDiscount, ref }) {
+  async createFeedbackTransaction({ applySubscriptionDiscount, ref }: FeedbackTransactionParams): Promise<FeedbackTransactionResult> {
     const state = {
       requiresPayment: false,
-      bucket: process.env.AWS_BUCKET,
+      bucket: process.env.AWS_BUCKET as string,
       upload: false,
-      charges: null
+      charges: null as string | null
     }
 
     const SQL = Progress.knex()
 
-    /**
-     * @description
-     * Finds the charge to get consumed.
-     */
     ref.category.name.includes(Categories.Speaking) &&
       Object.assign(state, { charges: 'speakings' })
 
@@ -112,54 +104,29 @@ class ProgressService {
 
     const feedback = await SQL.transaction(async T => {
       try {
-        /**
-         * @description
-         * If Discount applys, we should discount from the most recent package.
-         */
         if (applySubscriptionDiscount) {
           const pack = await Package.query(T)
             .withGraphJoined('plan')
             .findOne(ref.package)
-            .where(state.charges, '>', 0)
+            .where(state.charges as string, '>', 0)
             .andWhere({ isActive: true })
             .andWhere('plan.modelId', ref.model.id)
 
-          /**
-           * @description
-           * Patching package and discounting 1 speaking or 1 writing.
-           */
           if (pack) {
             const charge = await Package.query(T).patchAndFetchById(pack.id, {
-              [state.charges]: pack[state.charges] - 1
+              [state.charges as string]: (pack as unknown as Record<string, number>)[state.charges as string] - 1
             })
 
-            /**
-             * @description
-             * Showing the current speakings, writings
-             */
-            this.logger.info(`Speakings update: ${charge.speakings}`)
+            this.logger.info(`Speakings update: ${(charge as unknown as Record<string, unknown>).speakings}`)
 
-            this.logger.info(`Writings update: ${charge.writings}`)
+            this.logger.info(`Writings update: ${(charge as unknown as Record<string, unknown>).writings}`)
           } else {
             state.requiresPayment = true
-            /**
-             * @description
-             * Should notified that the package doesn't not contain any information about payments.
-             */
             throw new Error('Payment')
           }
         }
 
-        /**
-         * @description
-         * Is Speaking logic.
-         */
         if (ref.category.name === Categories.Speaking) {
-          /**
-           * @description
-           * Chaining all promises to reduce complexity in perfomance.
-           * @type {import ('aws-sdk').S3.PutObjectOutput []}
-           */
           const requests = ref.recordings.map(recording =>
             this.aws.upload({
               Body: recording.buffer,
@@ -168,38 +135,29 @@ class ProgressService {
             })
           )
 
-          /**
-           * @description
-           * Making a Graph of results, this will be stored in cloudstorage.
-           */
-          const uploads = (await Promise.all(requests)).map(recording => {
+          const uploads = (await Promise.all(requests)).map((recording) => {
             return {
-              bucket: recording.Bucket,
-              ETag: recording.ETag,
-              key: recording.key.replace('speakings/', ''),
-              location: recording.Location,
+              bucket: (recording as unknown as Record<string, unknown>).Bucket,
+              ETag: (recording as unknown as Record<string, unknown>).ETag,
+              key: ((recording as unknown as Record<string, unknown>).key as string).replace('speakings/', ''),
+              location: (recording as unknown as Record<string, unknown>).Location,
               userId: ref.user.id
             }
           })
 
-          /**
-           * @description
-           * This is because, we can't make a transaction inside AWS SDK.
-           * So this will be used in catch exception.
-           */
           state.upload = true
 
-          /**
-           * @description
-           * CloudStorageRef saving information about these uploads.
-           */
           const storage = await CloudStorage.query(T).insertGraphAndFetch(
-            uploads
+            uploads as unknown as Record<string, unknown>[]
           )
 
-          const keys = ref.progress.data[ref.category.name]
+          const keys = ref.progress.data[ref.category.name] as unknown as {
+            completed: boolean
+            cloudStorageRef: number[][]
+            lastIndex: number
+          }
 
-          const ids = storage.map(({ id }) => id)
+          const ids = (storage as unknown as Array<{ id: number }>).map(({ id }) => id)
 
           keys.completed = applySubscriptionDiscount || false
 
@@ -209,10 +167,10 @@ class ProgressService {
 
           const { exam } = await Progress.query(T)
             .patchAndFetchById(ref.progress.id, {
-              data: ref.progress.data
+              data: ref.progress.data as unknown as Record<string, unknown>
             })
             .where({ id: ref.progress.id })
-            .withGraphFetched({ exam: true })
+            .withGraphFetched({ exam: true }) as unknown as { exam: Record<string, unknown> }
 
           if (applySubscriptionDiscount) {
             const evaluation = await Evaluation.query(T).insertAndFetch({
@@ -224,7 +182,7 @@ class ProgressService {
               STATUS: STATUS.PENDING,
               userId: ref.user.id,
               refVersion: exam.version
-            })
+            } as unknown as Record<string, unknown>)
 
             const type = await this.context.getContextIdentifier(
               {
@@ -235,27 +193,19 @@ class ProgressService {
 
             const stream = new Socket()
 
-            /**
-             * @description
-             * Creating notification
-             */
             const notification = await Notification.query(T)
               .insertAndFetch({
                 message: 'Default Evalaution Notification',
                 read: false,
                 userId: ref.user.id,
-                type: type.id
-              })
+                type: type!.id
+              } as unknown as Record<string, unknown>)
               .withGraphFetched({ notificationType: true })
 
-            /**
-             * @description
-             * Sending to socket notification
-             */
             stream.socket.to(ref.user.email).emit(NOTIFICATION, notification)
 
             return {
-              evaluation,
+              evaluation: evaluation as unknown as Record<string, unknown>,
               feedback: true
             }
           }
@@ -264,30 +214,24 @@ class ProgressService {
         }
 
         if (ref.category.name === Categories.Writing) {
-          const keys = ref.progress.data[ref.category.name]
+          const keys = ref.progress.data[ref.category.name] as unknown as {
+            completed: boolean
+            feedback: unknown[]
+            lastIndex: number
+          }
 
           keys.completed = applySubscriptionDiscount || false
           keys.feedback.push(ref.feedback)
           keys.lastIndex = ref.lastIndex
 
-          /**
-           * Updating progress
-           */
           const { exam } = await Progress.query(T)
             .patchAndFetchById(ref.progress.id, {
-              data: ref.progress.data
+              data: ref.progress.data as unknown as Record<string, unknown>
             })
             .where({ id: ref.progress.id })
-            .withGraphFetched({ exam: true })
+            .withGraphFetched({ exam: true }) as unknown as { exam: Record<string, unknown> }
 
-          /**
-           * ApplySubscriptionsDiscount means that a teacher should take a evaluation of this.
-           */
           if (applySubscriptionDiscount) {
-            /**
-             * @description
-             * Creating an evaluation
-             */
             const evaluation = await Evaluation.query(T).insertAndFetch({
               examId: exam.id,
               categoryId: ref.category.id,
@@ -297,7 +241,7 @@ class ProgressService {
               STATUS: STATUS.PENDING,
               userId: ref.user.id,
               refVersion: exam.version
-            })
+            } as unknown as Record<string, unknown>)
             const stream = new Socket()
 
             const type = await this.context.getContextIdentifier(
@@ -312,14 +256,14 @@ class ProgressService {
                 message: 'Default Feedback Notification',
                 read: false,
                 userId: ref.user.id,
-                type: type.id
-              })
+                type: type!.id
+              } as unknown as Record<string, unknown>)
               .withGraphFetched({ notificationType: true })
 
             stream.socket.to(ref.user.email).emit(NOTIFICATION, notification)
 
             return {
-              evaluation,
+              evaluation: evaluation as unknown as Record<string, unknown>,
               feedback: true
             }
           }
@@ -328,19 +272,11 @@ class ProgressService {
         }
       } catch (err) {
         this.logger.error('Transaction Error', err)
-        /**
-         * @description
-         * If breakpoint is true, we should rollback all files.
-         */
         if (state.upload) {
           const stored = ref.recordings.map(recording => ({
             Key: recording.originalname
           }))
 
-          /**
-           * Deleting the file that has been previously commited.
-           * @see https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#deleteObjects-property
-           */
           await this.aws.deleteObjects({
             Bucket: state.bucket,
             Delete: {
@@ -356,11 +292,11 @@ class ProgressService {
       }
     })
 
-    return feedback
+    return feedback as FeedbackTransactionResult
   }
 
   @Bind
-  async updateScoreWithProgress({ context, data, score }) {
+  async updateScoreWithProgress({ context, data, score }: UpdateScoreParams): Promise<UpdateScoreResult> {
     const stream = new Socket()
 
     const SQL = Progress.knex()
@@ -393,16 +329,16 @@ class ProgressService {
               message: 'Default Feedback Notification',
               read: false,
               userId: score.user.userId,
-              type: type.id
-            })
+              type: type!.id
+            } as unknown as Record<string, unknown>)
             .withGraphFetched({ notificationType: true })
 
           stream.socket.to(score.email).emit(NOTIFICATION, notification)
 
           return {
-            notification,
-            progress,
-            stats
+            notification: notification as unknown as Record<string, unknown>,
+            progress: progress as unknown as Record<string, unknown>,
+            stats: stats as unknown as Record<string, unknown>
           }
         }
 
@@ -411,7 +347,7 @@ class ProgressService {
           .select(this.clientAttributes)
 
         return {
-          progress,
+          progress: progress as unknown as Record<string, unknown>,
           stats: null
         }
       } catch (err) {
@@ -423,7 +359,7 @@ class ProgressService {
       }
     })
 
-    return transaction
+    return transaction as UpdateScoreResult
   }
 }
 

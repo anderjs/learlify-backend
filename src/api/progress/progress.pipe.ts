@@ -1,7 +1,7 @@
 import { checkSchema } from 'express-validator'
 
-export class Progress {
-  get create() {
+export class ProgressPipe {
+  get create(): ReturnType<typeof checkSchema> {
     return checkSchema({
       examId: {
         in: 'body',
@@ -14,7 +14,7 @@ export class Progress {
     })
   }
 
-  get getOne() {
+  get getOne(): ReturnType<typeof checkSchema> {
     return checkSchema({
       examId: {
         in: 'query',
@@ -24,7 +24,7 @@ export class Progress {
     })
   }
 
-  get updateOne() {
+  get updateOne(): ReturnType<typeof checkSchema> {
     return checkSchema({
       feedback: {
         in: 'body',
@@ -63,7 +63,7 @@ export class Progress {
     })
   }
 
-  get patchOne() {
+  get patchOne(): ReturnType<typeof checkSchema> {
     return checkSchema({
       category: {
         in: 'query',
@@ -79,4 +79,4 @@ export class Progress {
   }
 }
 
-export const pipe = new Progress()
+export const pipe = new ProgressPipe()

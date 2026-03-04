@@ -1,26 +1,25 @@
-import { Bind, Router } from 'decorators'
+import { Router } from 'express'
 import { Logger } from 'api/logger'
 import { Middleware } from 'middlewares'
 import { ProgressController } from './progress.controller'
 import { pipe } from './progress.pipe'
 import { isRunningOnProductionOrDevelopment } from 'functions'
 import { updateProgressValidationJSON } from './progress.validation'
+import type { Router as ExpressRouter, RequestHandler } from 'express'
+import type { HttpConsumer } from '@types'
 
-@Router({
-  alias: 'progress',
-  route: '/progress'
-})
 class ProgressRouter {
+  private progress: ExpressRouter
+  private logger: typeof Logger.Service
+  private controller: ProgressController
+
   constructor() {
-    this.controller = new ProgressController()
+    this.progress = Router()
     this.logger = Logger.Service
+    this.controller = new ProgressController()
   }
 
-  @Bind
-  /**
-   * @returns {HttpConsumer}
-   */
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     if (isRunningOnProductionOrDevelopment()) {
       this.logger.info('http: /progress')
     }
@@ -32,14 +31,14 @@ class ProgressRouter {
         pipe.getOne,
         Middleware.usePipe,
         Middleware.noDemoReferrer
-      ],
-      Middleware.secure(this.controller.getOne)
+      ] as RequestHandler[],
+      Middleware.secure(this.controller.getOne) as RequestHandler
     )
 
     this.progress.post(
       '/',
-      [Middleware.authenticate, pipe.create, Middleware.usePipe],
-      Middleware.secure(this.controller.create)
+      [Middleware.authenticate, pipe.create, Middleware.usePipe] as RequestHandler[],
+      Middleware.secure(this.controller.create) as RequestHandler
     )
 
     this.progress.put(
@@ -49,8 +48,8 @@ class ProgressRouter {
         Middleware.noDemoReferrer,
         Middleware.memoryStorage,
         updateProgressValidationJSON
-      ],
-      Middleware.secure(this.controller.updateOne)
+      ] as RequestHandler[],
+      Middleware.secure(this.controller.updateOne) as RequestHandler
     )
 
     this.progress.patch(
@@ -60,16 +59,15 @@ class ProgressRouter {
         pipe.patchOne,
         Middleware.usePipe,
         Middleware.noDemoReferrer
-      ],
-      Middleware.secure(this.controller.patchOne)
+      ] as RequestHandler[],
+      Middleware.secure(this.controller.patchOne) as RequestHandler
     )
 
-    return this.consumer
+    return {
+      route: '/progress',
+      handlers: this.progress
+    }
   }
 }
 
-const { httpConsumer } = new ProgressRouter()
-
-const consumer = httpConsumer()
-
-export default consumer
+export default new ProgressRouter().httpConsumer()

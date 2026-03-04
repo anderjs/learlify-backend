@@ -21,7 +21,19 @@ import { ProgressService } from './progress.service'
 import { cloudfrontURL, parseContent } from 'functions'
 import { v4 as UUID } from 'uuid'
 
+import type { Request, Response } from 'express'
+import type { ProgressStructure } from './progress.types'
+
 class ProgressController {
+  aws: AmazonWebServices
+  categoryService: CategoriesService
+  packagesService: PackagesService
+  progressService: ProgressService
+  plansService: PlansService
+  examsService: ExamsService
+  evaluationsService: EvaluationsService
+  logger: typeof Logger.Service
+
   constructor() {
     this.aws = new AmazonWebServices()
     this.categoryService = new CategoriesService()
@@ -33,7 +45,7 @@ class ProgressController {
     this.logger = Logger.Service
   }
 
-  get structure() {
+  get structure(): ProgressStructure {
     return {
       'Grammar & Vocabulary': {
         feedback: [],
@@ -64,15 +76,11 @@ class ProgressController {
     }
   }
 
-  /**
-   * @param {import('express').Request} req
-   * @param {import('express').Response} res
-   */
   @Bind
-  async create(req, res) {
+  async create(req: Request, res: Response) {
     const exists = await this.progressService.getOne({
       examId: req.body.examId,
-      userId: req.user.id
+      userId: req.user!.id
     })
 
     if (exists) {
@@ -83,7 +91,7 @@ class ProgressController {
 
     const progress = await this.progressService.create({
       examId: req.body.examId,
-      userId: req.user.id,
+      userId: req.user!.id,
       data: {
         uuid: UUID(),
         ...this.structure
@@ -99,15 +107,11 @@ class ProgressController {
     })
   }
 
-  /**
-   * @param {import('express').Request} req
-   * @param {import('express').Response} res
-   */
   @Bind
-  async getOne(req, res) {
+  async getOne(req: Request, res: Response) {
     const progress = await this.progressService.getOne({
       examId: req.query.examId,
-      userId: req.user.id
+      userId: req.user!.id
     })
 
     if (progress) {
@@ -121,14 +125,10 @@ class ProgressController {
     throw new NotFoundException()
   }
 
-  /**
-   * @param {import('express').Request} req
-   * @param {import('express').Response} res
-   */
   @Bind
-  async updateOne(req, res) {
+  async updateOne(req: Request, res: Response) {
     const { id, key, score, uuid, lastIndex, feedback, points } = req.body
-    
+
     const name = decodeURIComponent(key)
 
     const category = await this.categoryService.getOne({
@@ -140,39 +140,27 @@ class ProgressController {
     })
 
     if (progress && category) {
-      const { data } = progress
+      const { data } = progress as unknown as { data: ProgressStructure }
 
-      /**
-       * @description
-       * This validation works for preventing hack our logical business.
-       */
       if (data.uuid === uuid && name in data) {
-        const { dir, model } = progress.exam
+        const { dir, model } = (progress as unknown as Record<string, unknown>).exam as Record<string, unknown>
 
         const body = await this.aws.getObjectBody({
-          Bucket: process.env.AWS_BUCKET,
-          Key: cloudfrontURL(dir)
+          Bucket: process.env.AWS_BUCKET as string,
+          Key: cloudfrontURL(dir as string)
         })
 
         const { exercises } = parseContent({
-          data: body.toString(),
+          data: (body as Buffer).toString() as unknown as JSON,
           key: name
         })
 
-        /**
-         * @description
-         * User requires feedback.
-         */
         const requiresFeedback = exercises?.length === lastIndex
-        
+
         this.logger.info('RequiresFeedback', requiresFeedback)
 
-        /**
-         * @description
-         * With Static Service guaranteed to update based on his key.
-         */
         if (key === Categories.Speaking || key === Categories.Writing) {
-          const user = req.user
+          const user = req.user!
 
           const response = await this.progressService.createFeedbackTransaction(
             {
@@ -181,87 +169,87 @@ class ProgressController {
                   userId: user.id,
                   isActive: true
                 },
-                user,
-                category,
-                progress,
+                user: user as unknown as { id: number; email: string; [key: string]: unknown },
+                category: category as unknown as { id: number; name: string; [key: string]: unknown },
+                progress: progress as unknown as { id: number; data: ProgressStructure; exam?: Record<string, unknown> },
                 feedback,
                 lastIndex,
-                recordings: req.files,
-                model
+                recordings: req.files as Express.Multer.File[],
+                model: model as { id: number; name?: string }
               },
               applySubscriptionDiscount: requiresFeedback
             }
           )
 
-          if (response && response.requiresPayment) {
+          if (response && (response as unknown as Record<string, unknown>).requiresPayment) {
             this.logger.warn('Cannot be updated due to payment requirements')
-            
+
             throw new PaymentException()
           } else if (response) {
             this.logger.info('progress', response)
 
             return res.status(201).json({
               response: {
-                id: progress.id,
-                ...response
+                id: (progress as unknown as { id: number }).id,
+                ...response as unknown as Record<string, unknown>
               },
               statusCode: 201
             })
           }
 
-          if (response.transactionError) {
+          if ((response as unknown as Record<string, unknown>).transactionError) {
             this.logger.error('error', response)
 
             throw new TransactionError()
           }
         } else {
-          const sync = progress.data[category.name]
+          const sync = data[category.name as keyof ProgressStructure] as unknown as Record<string, unknown>
 
           sync.completed = requiresFeedback
 
           sync.lastIndex = lastIndex
 
-          sync.score += score
+          sync.score = (sync.score as number) + score
 
           if (points) {
-            sync.points = sync.points + points
+            sync.points = (sync.points as number) + points
           }
 
           this.logger.info('Progress Sync', sync)
 
           const transaction = await this.progressService.updateScoreWithProgress({
             context: requiresFeedback,
-            data: progress,
+            data: progress as unknown as { id: number },
             score: {
               ref: StatsFunctions.score({
                 category: category.name,
-                model: model.name,
-                value: sync.score
-              }),
+                model: (model as { name: string }).name,
+                value: sync.score as number
+              }) as unknown as Record<string, unknown>,
               user: {
                 categoryId: category.id,
-                examId: progress.exam.id,
-                userId: req.user.id,
+                examId: ((progress as unknown as Record<string, unknown>).exam as Record<string, unknown>).id as number,
+                userId: req.user!.id,
               },
-              email: req.user.email
+              email: req.user!.email
             }
           })
 
-          if (transaction.transactionError) {
+          if ((transaction as unknown as Record<string, unknown>).transactionError) {
             throw new TransactionError()
           }
 
           this.logger.info('updated', transaction)
 
-          if (transaction.notification) {
+          if ((transaction as unknown as Record<string, unknown>).notification) {
             this.logger.info('Notification Sended')
           }
 
           return res.status(201).json({
             message: 'Progress Updated Successfully',
             response: {
-              id: progress.id,
-              ...transaction, 
+              id: (progress as unknown as { id: number }).id,
+              ...transaction as unknown as Record<string, unknown>,
               feedback: requiresFeedback
             },
             statusCode: 201
@@ -274,13 +262,9 @@ class ProgressController {
     throw new NotFoundException('Resource Not Found, Must Be Key or Progress')
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
   @Bind
-  async patchOne(req, res) {
-    const name = req.query.category
+  async patchOne(req: Request, res: Response) {
+    const name = req.query.category as string
 
     const category = await this.categoryService.getOne({
       name: decodeURIComponent(name)
@@ -289,20 +273,16 @@ class ProgressController {
     if (category) {
       const progress = await this.progressService.getOne({
         id: req.query.id,
-        userId: req.user.id
+        userId: req.user!.id
       })
 
       if (progress) {
-        const data = progress.data
+        const data = (progress as unknown as { data: Record<string, unknown> }).data
 
-        /**
-         * @description
-         * Replacing his own context on the part.
-         */
-        data[category.name] = this.structure[category.name]
+        data[category.name] = this.structure[category.name as keyof ProgressStructure]
 
         await this.progressService.updateOne({
-          id: req.query.id,
+          id: (progress as unknown as { id: number }).id,
           data
         })
 
