@@ -1,12 +1,20 @@
 import { Logger } from 'api/logger'
-import { Bind } from 'decorators'
 import { AmazonWebServices } from './aws.service'
 import { CloudStorageService } from 'api/cloudstorage/cloudstorage.service'
 import { PackagesService } from 'api/packages/packages.service'
 import { PaymentException } from 'exceptions'
+import type { Request, Response } from 'express'
+import type { AWSControllerOptions } from './aws.types'
+import type MulterS3 from 'multer-s3'
 
 class AWSController {
-  constructor({ bucket }) {
+  private aws: AmazonWebServices
+  private cloudStorageService: CloudStorageService
+  private packagesService: PackagesService
+  private logger: typeof Logger.Service
+  private bucket: string
+
+  constructor({ bucket }: AWSControllerOptions) {
     this.aws = new AmazonWebServices()
     this.cloudStorageService = new CloudStorageService()
     this.packagesService = new PackagesService()
@@ -14,13 +22,8 @@ class AWSController {
     this.bucket = bucket
   }
 
-  /**
-   * @param {import ('express').Request} req
-   * @param {import ('express').Response} res
-   */
-  @Bind
-  async getFile(req, res) {
-    const { filename, bucket, key } = req.query
+  async getFile(req: Request, res: Response): Promise<Response> {
+    const { filename, bucket, key } = req.query as Record<string, string>
 
     const buffer = await this.aws.getObjectBody({
       Bucket: bucket || 'aptisgo',
@@ -34,15 +37,10 @@ class AWSController {
     })
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  @Bind
-  async uploadSpeaking(req, res) {
-    const user = req.user
+  async uploadSpeaking(req: Request, res: Response): Promise<Response> {
+    const user = req.user!
 
-    const file = req.file
+    const file = req.file as unknown as MulterS3.MulterS3File
 
     const subscription = await this.packagesService.getActiveSubscription({
       competence: 'speakings',
@@ -59,7 +57,7 @@ class AWSController {
 
     const storage = await this.cloudStorageService.create({
       bucket: file.bucket,
-      Etag: file.etag,
+      ETag: file.etag,
       key: file.key,
       location: file.location,
       userId: user.id

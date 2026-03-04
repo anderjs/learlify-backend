@@ -10,12 +10,14 @@ export interface ConfigurationProvider {
   APP_HOST: string
   APP_PORT: number
   AWS_ACCESS_KEY: string
+  AWS_REGION: string
   AWS_SECRET_KEY: string
   CLOUDFRONT_NETWORK: string
   CONSOLE_LOG_LEVEL: 'debug'
   FILE_LOG_LEVEL: string
   JWT_EXPIRATION: string
   JWT_SECRET: string
+  MULTIPART_FORMDATA: { FILESIZE: number }
   PAGINATION_LIMIT: number
   SENDGRID_APTIS_ACADEMY: string
   SENDGRID_APTIS_EMAIL: string

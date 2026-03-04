@@ -6,8 +6,17 @@ import { AmazonWebServices } from './aws.service'
 import { pipe } from './aws.pipe'
 import { MODE } from 'common/process'
 import { isRunningOnProductionOrDevelopment } from 'functions'
+import type { Router as ExpressRouter, RequestHandler } from 'express'
+import type { HttpConsumer } from '@types'
+import type { AWSControllerOptions } from './aws.types'
 
 class AWSRouter {
+  private aws: ExpressRouter
+  private options: AWSControllerOptions
+  private controller: AWSController
+  private fileInterceptor: AmazonWebServices['fileInterceptor']
+  private logger: typeof Logger.Service
+
   constructor() {
     this.aws = Router()
     this.options = {
@@ -22,7 +31,7 @@ class AWSRouter {
     this.httpConsumer = this.httpConsumer.bind(this)
   }
 
-  httpConsumer() {
+  httpConsumer(): HttpConsumer {
     const { bucket } = this.options
 
     if (isRunningOnProductionOrDevelopment()) {
@@ -31,8 +40,8 @@ class AWSRouter {
 
     this.aws.get(
       '/',
-      [Middleware.authenticate, pipe.getFile, Middleware.usePipe],
-      Middleware.secure(this.controller.getFile)
+      [Middleware.authenticate, pipe.getFile, Middleware.usePipe] as RequestHandler[],
+      Middleware.secure(this.controller.getFile) as RequestHandler
     )
 
     this.aws.post(
@@ -42,8 +51,8 @@ class AWSRouter {
         pipe.upload,
         Middleware.usePipe,
         this.fileInterceptor({ bucket })
-      ],
-      Middleware.secure(this.controller.uploadSpeaking)
+      ] as RequestHandler[],
+      Middleware.secure(this.controller.uploadSpeaking) as RequestHandler
     )
 
     return {

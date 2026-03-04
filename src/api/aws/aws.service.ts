@@ -10,9 +10,18 @@ import { Upload } from '@aws-sdk/lib-storage'
 import { ConfigService } from 'api/config/config.service'
 import { generateDateFileName, sanitizeFile } from 'functions'
 import { s3Client } from './s3.client'
+import type { Readable } from 'stream'
+import type { RequestHandler } from 'express'
+import type {
+  GetObjectCommandInput,
+  PutObjectCommandInput,
+  DeleteObjectCommandInput,
+  DeleteObjectsCommandInput
+} from '@aws-sdk/client-s3'
+import type { FileInterceptorOptions } from './aws.types'
 
-const streamToBuffer = async stream => {
-  const chunks = []
+const streamToBuffer = async (stream: Readable): Promise<Buffer> => {
+  const chunks: Buffer[] = []
   for await (const chunk of stream) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
   }
@@ -20,19 +29,16 @@ const streamToBuffer = async stream => {
 }
 
 export class AmazonWebServices {
+  private uploadKey: string
+  private configService: ConfigService
+
   constructor() {
     this.uploadKey = 'upload'
     this.configService = new ConfigService()
     this.fileInterceptor = this.fileInterceptor.bind(this)
   }
 
-  /**
-   * @typedef {Object} FileInterceptorOptions
-   * @property {string} bucket
-   *
-   * @param {FileInterceptorOptions} fileInterceptorOptions
-   */
-  fileInterceptor({ bucket }) {
+  fileInterceptor({ bucket }: FileInterceptorOptions): RequestHandler {
     const { FILESIZE } = this.configService.provider.MULTIPART_FORMDATA
     const instance = Multer({
       limits: { fileSize: FILESIZE },
@@ -54,30 +60,30 @@ export class AmazonWebServices {
     return instance.single(this.uploadKey)
   }
 
-  async getObjectBody(params) {
+  async getObjectBody(params: GetObjectCommandInput): Promise<Buffer> {
     const response = await s3Client.send(new GetObjectCommand(params))
-    return streamToBuffer(response.Body)
+    return streamToBuffer(response.Body as Readable)
   }
 
-  async getJSONFile(params, parse) {
+  async getJSONFile(params: GetObjectCommandInput, parse?: boolean): Promise<unknown> {
     const buffer = await this.getObjectBody(params)
     const file = buffer.toString()
     return parse ? JSON.parse(file) : file
   }
 
-  async putObject(params) {
+  async putObject(params: PutObjectCommandInput) {
     return s3Client.send(new PutObjectCommand(params))
   }
 
-  async deleteObject(params) {
+  async deleteObject(params: DeleteObjectCommandInput) {
     return s3Client.send(new DeleteObjectCommand(params))
   }
 
-  async deleteObjects(params) {
+  async deleteObjects(params: DeleteObjectsCommandInput) {
     return s3Client.send(new DeleteObjectsCommand(params))
   }
 
-  async upload(params) {
+  async upload(params: PutObjectCommandInput) {
     return new Upload({ client: s3Client, params }).done()
   }
 }

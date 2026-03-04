@@ -1,7 +1,7 @@
 import { S3Client } from '@aws-sdk/client-s3'
 import { ConfigService } from 'api/config/config.service'
 
-const buildS3Client = () => {
+const buildS3Client = (): S3Client => {
   const { provider } = new ConfigService()
 
   return new S3Client({

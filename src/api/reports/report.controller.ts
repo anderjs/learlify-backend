@@ -1,21 +1,21 @@
+import { Request, Response } from 'express'
+import type { MailData } from '@sendgrid/helpers/classes/mail'
 import { MailService } from 'api/mails/mails.service'
 import { ConfigService } from 'api/config/config.service'
 import { UsersService } from 'api/users/users.service'
-import { Bind } from 'decorators'
 
 class ReportController {
-  constructor () {
+  private configService: ConfigService
+  private mailService: MailService
+  private usersService: UsersService
+
+  constructor() {
     this.configService = new ConfigService()
     this.mailService = new MailService()
     this.usersService = new UsersService()
   }
 
-  /**
-   * @param {import ('express').Request} req 
-   * @param {import ('express').Response} res 
-   */
-  @Bind
-  async create (req, res) {
+  create = async (req: Request, res: Response) => {
     const { context, device, from, message } = req.body
 
     const { provider } = this.configService
@@ -37,8 +37,8 @@ class ReportController {
             </div>
           </p>
         </div>
-      `   
-    })
+      `
+    } as MailData)
 
     return res.status(200).json({
       message: 'Report has been sended',
@@ -46,22 +46,16 @@ class ReportController {
     })
   }
 
-  /**
-   * 
-   * @param {import ('express').Request} req 
-   * @param {import ('express').Response} res 
-   */
-  @Bind
-  async quality (req, res) {
-    const user = req.user
+  quality = async (req: Request, res: Response) => {
+    const user = req.user!
 
     const { video, assist } = req.body
 
     const { provider } = this.configService
 
     const teacher = this.usersService.getOne({
-      id: req.query.teacher
-    })
+      id: req.query.teacher as unknown as number
+    }) as unknown as Record<string, string> | undefined
 
     await this.mailService.sendMail({
       from: provider.SENDGRID_APTIS_EMAIL,

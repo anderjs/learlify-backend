@@ -1,6 +1,15 @@
 import { checkSchema } from 'express-validator'
 
-class Report {
+interface LengthOptions {
+  options: {
+    max: number
+    min: number
+  }
+}
+
+class ReportPipe {
+  private lengthOptions: LengthOptions
+
   constructor() {
     this.lengthOptions = {
       options: {
@@ -35,7 +44,7 @@ class Report {
     })
   }
 
-  get quality () {
+  get quality() {
     return checkSchema({
       video: {
         in: 'body',
@@ -54,4 +63,4 @@ class Report {
   }
 }
 
-export const pipe = new Report()
+export const pipe = new ReportPipe()

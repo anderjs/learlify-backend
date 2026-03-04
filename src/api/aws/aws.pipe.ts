@@ -1,7 +1,7 @@
 import { checkSchema } from 'express-validator'
 
-export class AWS {
-  get getFile () {
+export class AWSPipe {
+  get getFile(): ReturnType<typeof checkSchema> {
     return checkSchema({
       filename: {
         in: 'query',
@@ -15,13 +15,11 @@ export class AWS {
       key: {
         in: 'query',
         isString: true
-        
       }
     })
   }
 
-
-  get upload () {
+  get upload(): ReturnType<typeof checkSchema> {
     return checkSchema({
       feedback: {
         in: 'query',
@@ -36,4 +34,4 @@ export class AWS {
   }
 }
 
-export const pipe = new AWS()
+export const pipe = new AWSPipe()
