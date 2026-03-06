@@ -1,4 +1,4 @@
-import { MODE } from 'common/process'
+import { MODE } from '../common/process'
 import dotenv from 'dotenv'
 
 dotenv.config()

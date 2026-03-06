@@ -1,6 +1,18 @@
 import type { Knex } from 'knex'
 
-exports.up = function (knex: Knex): unknown {
+exports.up = async function (knex: Knex): Promise<void> {
+  // Asegurarse de que el rol User (id: 3) existe
+  const roleExists = await knex('roles').where({ id: 3 }).first()
+  
+  if (!roleExists) {
+    await knex('roles').insert([
+      { id: 1, name: 'Admin' },
+      { id: 2, name: 'Teacher' },
+      { id: 3, name: 'User' }
+    ])
+  }
+  
+  // Insertar el usuario demo
   const user = {
     id: 0,
     firstName: 'Demo',

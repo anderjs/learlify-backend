@@ -10,8 +10,9 @@ type MysqlFieldLike = {
 
 type MysqlNextLike = () => unknown
 
+// Siempre apuntar al .env en la raíz del proyecto
 const dotenvPath =
-  process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '.env')
+  process.env.DOTENV_CONFIG_PATH || path.resolve(__dirname, '../../.env')
 
 dotenv.config({ path: dotenvPath })
 
