@@ -1,4 +1,0 @@
-export const OWNER = {
-  LATEST: 'LATEST',
-  NOTIFICATION: 'NOTIFICATION'
-}
