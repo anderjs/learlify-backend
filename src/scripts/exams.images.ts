@@ -32,8 +32,8 @@ async function script(): Promise<void> {
         const index = Number.parseInt(exam, 10) + 1
 
         await Exam.query().updateAndFetchById(exams[exam].id, {
-          alternImageUrl: `${path}/o-${index}.svg`,
           imageUrl: `${path}/${index}.svg`,
+          alternImageUrl: `${path}/o-${index}.svg`,
           requiresPayment: Number.parseInt(exam, 10) !== 0
         })
       }

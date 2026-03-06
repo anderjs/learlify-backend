@@ -16,41 +16,47 @@ type ChatPayload = {
 }
 
 export default class ChatGateway extends Socket {
-  logger: typeof Logger.Service
+  public logger: typeof Logger.Service
 
   constructor() {
     super()
     this.logger = Logger.Service
   }
 
-  main(): void {
+  public main(): void {
     this.socket.on('connection', (socket: SocketIO) => {
       this.logger.info('ChatGateway: connected')
 
       socket.on(CHAT_MESSAGE, (payload: ChatPayload) => {
         this.logger.debug('Chat Message Emited: ', {
+          room: payload.room,
           payload: payload.message,
-          room: payload.room
         })
 
         socket.to(payload.room).emit(CHAT_MESSAGE, payload)
       })
 
       socket.on(TYPING_MESSAGE, (payload: ChatPayload) => {
-        this.logger.debug('Typing Message Event: ', payload)
+        this.logger.debug('Typing Message Event: ', {
+          room: payload.room,
+          payload: payload.message,
+        })
 
         socket.to(payload.room).emit(TYPING_MESSAGE, payload)
       })
 
       socket.on(FILE_UPLOAD_STREAM, (payload: ChatPayload) => {
-        this.logger.debug('Attaching File Event: ', payload)
+        this.logger.debug('Attaching File Event: ', {
+          room: payload.room,
+          payload: payload.message,
+        })
 
         socket.to(payload.room).emit(FILE_ATTACH_STREAM, payload)
       })
 
       socket.on(JOIN_CHAT_ROOM, (payload: ChatPayload) => {
         socket.join(payload.room)
-        this.logger.info('Joining to '.concat(payload.room))
+        
         this.socket.to(payload.room).emit(JOIN_CHAT_ROOM, { ping: true })
       })
     })

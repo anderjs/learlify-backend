@@ -1,11 +1,10 @@
-import type { Socket as SocketIO } from 'socket.io'
 import { Bind } from 'decorators'
 import { Socket } from 'modules'
-import { ConfigService } from 'api/config/config.service'
-import { MeetingsService } from 'api/meetings/meetings.service'
-import { ScheduleService } from 'api/schedule/schedule.service'
-import { MEETING_STATUS } from 'gateways/events'
 import { Logger } from 'api/logger'
+import { MEETING_STATUS } from 'gateways/events'
+import { ScheduleService } from 'api/schedule/schedule.service'
+
+import type { Socket as SocketIO } from 'socket.io'
 
 type MeetingStatusPayload = {
   schedule: {
@@ -15,21 +14,17 @@ type MeetingStatusPayload = {
 }
 
 class MeetingsGateway extends Socket {
-  logger: typeof Logger.Service
-  configService: ConfigService
-  scheduleService: ScheduleService
-  meetingsService: MeetingsService
+  public logger: typeof Logger.Service
+  private scheduleService: ScheduleService
 
   constructor() {
     super()
     this.logger = Logger.Service
-    this.configService = new ConfigService()
     this.scheduleService = new ScheduleService()
-    this.meetingsService = new MeetingsService()
   }
 
   @Bind
-  main(): void {
+  public main(): void {
     this.socket.on('connection', (socket: SocketIO) => {
       this.logger.info('MeetingsGateway: connected')
 

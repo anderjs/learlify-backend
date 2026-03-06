@@ -2,7 +2,7 @@ import type { Server } from 'socket.io'
 import { stream } from '../index'
 
 export class Socket {
-  private socket: Server
+  public socket: Server
 
   constructor() {
     this.socket = stream
