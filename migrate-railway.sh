@@ -17,8 +17,11 @@ echo "✅ Archivo .env.railway encontrado"
 echo "🔄 Ejecutando migraciones usando credenciales de Railway..."
 echo ""
 
-# Exportar las variables del archivo .env.railway y ejecutar migraciones
-export DOTENV_CONFIG_PATH=.env.railway
+# Cargar variables del archivo .env.railway y ejecutar migraciones
+set -a
+source .env.railway
+set +a
+
 npm run migrate
 
 echo ""
