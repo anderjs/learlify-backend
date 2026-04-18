@@ -2,10 +2,12 @@ import express from 'express'
 import type { Request, Response } from 'express'
 import type { Registry } from 'prom-client'
 import { register } from 'middlewares/metricsCollector'
+import { Middleware } from 'middlewares'
+import { Roles } from 'metadata/roles'
 
 const router = express.Router()
 
-router.get('/metrics', async (_req: Request, res: Response) => {
+router.get('/metrics', Middleware.authenticate, Middleware.RolesGuard([Roles.Admin]), async (_req: Request, res: Response) => {
   if (process.env.METRICS_ENABLED === 'false') {
     return res.status(404).json({ message: 'Not Found', statusCode: 404 })
   }

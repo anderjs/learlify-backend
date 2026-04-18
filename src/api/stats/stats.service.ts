@@ -104,6 +104,33 @@ export class StatsService {
     }
   }
 
+  @Bind
+  batchGetAll(
+    { examIds, userId, categoryIds }: { examIds: number[]; userId: number; categoryIds: number[] },
+    { model }: { model: string }
+  ) {
+    switch (model) {
+      case Models.APTIS:
+        return Stats.query()
+          .whereNotNull('examId')
+          .whereIn('examId', examIds)
+          .where({ userId })
+          .whereIn('categoryId', categoryIds)
+          .orderBy('createdAt', 'DESC')
+          .withGraphFetched({ category: true })
+
+      case Models.IELTS:
+        return Stats.query()
+          .whereNotNull('examId')
+          .whereIn('examId', examIds)
+          .where({ userId })
+          .whereIn('categoryId', categoryIds)
+          .andWhereNot({ bandScore: 0 })
+          .orderBy('createdAt', 'DESC')
+          .withGraphFetched({ category: true })
+    }
+  }
+
   async getOne({ userId, examId, categoryId }: { userId: number; examId: number; categoryId: number }) {
     const limit = 1
 

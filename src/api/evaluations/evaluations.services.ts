@@ -105,14 +105,19 @@ export class EvaluationsService {
     }
 
     if (evaluation) {
-      return evaluation.teacherId
+      const { teacherId, status } = evaluation as { teacherId?: number; status?: string }
+      const dbFilter: Record<string, unknown> = {}
+      if (teacherId !== undefined) dbFilter.teacherId = teacherId
+      if (status !== undefined) dbFilter.status = status
+
+      return teacherId
         ? Evaluation.query()
-            .andWhere(evaluation as Record<string, unknown>)
+            .andWhere(dbFilter)
             .page(page - 1, this.configService.provider.PAGINATION_LIMIT)
             .withGraphFetched(getAll.relationShip)
             .orderBy('createdAt', 'desc')
         : Evaluation.query()
-            .where(evaluation as Record<string, unknown>)
+            .where(dbFilter)
             .andWhereNot({ status: STATUS.EVALUATED })
             .page(page - 1, this.configService.provider.PAGINATION_LIMIT)
             .withGraphFetched(getAll.relationShip)
@@ -151,6 +156,8 @@ export class EvaluationsService {
     const formatted = await Evaluation.query()
       .findById(evaluation.id as number)
       .withGraphJoined(getOne.relationShip)
+
+    if (!formatted) return undefined
 
     return Object.assign(formatted as unknown as Record<string, unknown>, evaluation)
   }
@@ -218,7 +225,7 @@ export class EvaluationsService {
 
         return update
       } catch (err) {
-        this.logger.error('patchAndCreeateResults', err)
+        this.logger.error('patchAndCreateResults', err)
 
         return {
           details: err,

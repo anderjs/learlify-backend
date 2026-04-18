@@ -154,7 +154,7 @@ class StripeService {
     try {
       const intent = await stripe.paymentIntents.cancel(paymentIntentId)
 
-      this.logger.error('intentPaymentCancel', intent)
+      this.logger.info('intentPaymentCancel', intent)
 
       return intent
     } catch (err) {

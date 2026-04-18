@@ -6,7 +6,7 @@ import { MailService } from 'api/mails/mails.service'
 import { ScheduleService } from 'api/schedule/schedule.service'
 import { ScheduleController } from 'api/schedule/schedule.controller'
 import { ConfigService } from 'api/config/config.service'
-import { sendgridConfig } from 'api/mails'
+import { mailConfig } from 'api/mails'
 import { Sockets } from '../index'
 import moment from 'moment'
 import type { ConfigurationProvider } from '@types'
@@ -112,7 +112,7 @@ class ScheduleTasks {
           this.logger.info('current', current)
 
           await this.mailService.sendMail({
-            from: sendgridConfig.email,
+            from: mailConfig.email,
             to: current.teacher.email,
             text: '¡Recordatorio para tu clase en AptisGo!',
             subject:
@@ -159,7 +159,7 @@ class ScheduleTasks {
               )
 
               await this.mailService.sendMail({
-                from: sendgridConfig.email,
+                from: mailConfig.email,
                 to: meetingIndex.user.email,
                 text: '¡Recordatorio para tu clase en AptisGo!',
                 subject:
@@ -333,7 +333,7 @@ class ScheduleTasks {
           const current = inactives[inactive]
 
           await this.mailService.sendMail({
-            from: sendgridConfig.email,
+            from: mailConfig.email,
             to: current.teacher.email,
             text: 'Se ha eliminado un horario previo sin contratar',
             subject:

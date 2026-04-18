@@ -48,7 +48,14 @@ export async function addToBlocklist(token: string): Promise<boolean> {
 export async function isTokenBlocked(token: string): Promise<boolean> {
   const redis = getRedisClient()
 
-  if (!redis) return false
+  if (!redis) {
+    // Fail closed: treat every token as blocked when blocklist is unavailable
+    // to prevent logged-out tokens from remaining valid during Redis outages.
+    ;(logger as unknown as { warn(k: string): void }).warn(
+      'jwt.blocklist.redis.unavailable — failing closed, rejecting token'
+    )
+    return true
+  }
 
   const key = BLOCKLIST_PREFIX + tokenHash(token)
   const value = await (redis as unknown as { get(k: string): Promise<string | null> }).get(key)

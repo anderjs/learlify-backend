@@ -4,7 +4,7 @@ import { Logger } from 'api/logger'
 import { ConfigService } from 'api/config/config.service'
 import { PackagesService } from 'api/packages/packages.service'
 import { MailService } from 'api/mails/mails.service'
-import { sendgridConfig } from 'api/mails'
+import { mailConfig } from 'api/mails'
 import moment from 'moment-timezone'
 import i18n from 'i18n'
 import type {
@@ -64,7 +64,7 @@ class PackagesTasks {
 
           await this.mailService.sendMail({
             to: pack.user.email,
-            from: sendgridConfig.email,
+            from: mailConfig.email,
             subject: i18n.__('mails.services.notifyExpiration.subject'),
             text: i18n.__('mails.services.notifyExpiration.text', {
               user: pack.user.firstName
@@ -72,8 +72,8 @@ class PackagesTasks {
             html: `
           <div>
             ${i18n.__('mails.services.notifyExpiration.html.notify')}
-              <a href="${sendgridConfig.domain}">${
-              sendgridConfig.domain
+              <a href="${mailConfig.domain}">${
+              mailConfig.domain
             }/account/pricing</a>
             ${i18n.__('mails.services.notifyExpiration.html.practice')}
           </div>
@@ -123,7 +123,7 @@ class PackagesTasks {
 
           await this.mailService.sendMail({
             to: pack.user.email,
-            from: sendgridConfig.email,
+            from: mailConfig.email,
             subject: i18n.__('mails.services.packageExpiration.subject'),
             text: i18n.__('mails.services.packageExpiration.text', {
               user: pack.user.firstName
@@ -135,8 +135,8 @@ class PackagesTasks {
                   user: pack.user.firstName
                 })}
                 ${i18n.__('mails.services.packageExpiration.html.purchase')} 
-                  <a href="${sendgridConfig.domain}">${
-              sendgridConfig.domain
+                  <a href="${mailConfig.domain}">${
+              mailConfig.domain
             }/account/pricing</a>
               </p>
               </strong>AptisGo</strong>

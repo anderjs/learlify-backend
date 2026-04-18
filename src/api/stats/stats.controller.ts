@@ -56,24 +56,26 @@ class StatsController {
         )
       )
 
-      let data: (string | undefined)[] = []
+      const examIdList = (ids as unknown as number[])
+      const categoryIdList = categories.map(c => (c as unknown as Record<string, number>).id)
 
-      for (const id in ids) {
-        const stats = await Promise.all(
-          categories.map(category =>
-            this.statsService.getAll(
-              {
-                examId: (ids as unknown as Record<string, unknown>[])[id],
-                userId: req.user!.id,
-                categoryId: (category as unknown as Record<string, unknown>).id
-              },
-              { model: model.name }
-            )
-          )
-        )
+      const allStats = await this.statsService.batchGetAll(
+        { examIds: examIdList, userId: req.user!.id, categoryIds: categoryIdList },
+        { model: model.name }
+      ) as unknown as (Record<string, unknown> & { examId: number })[]
 
-        ;(data as unknown[])[id] = stats.flat()
+      const statsByExam = new Map<number, (Record<string, unknown>)[]>()
+      for (const stat of (allStats || [])) {
+        const bucket = statsByExam.get(stat.examId) ?? []
+        bucket.push(stat)
+        statsByExam.set(stat.examId, bucket)
       }
+
+      let data: (string | undefined)[] = examIdList.map(() => undefined)
+
+      examIdList.forEach((examId, index) => {
+        ;(data as unknown[])[index] = statsByExam.get(examId) ?? []
+      })
 
       data = (data as unknown as Record<string, unknown>[][]).map(keys => {
         const output = keys.reduce((accumulator: number, stats: Record<string, unknown>) => {

@@ -1,5 +1,6 @@
 import { Bind } from 'decorators'
 import { Logger } from 'api/logger'
+import { generateDateFileName } from 'functions'
 import { Categories } from 'metadata/categories'
 import { EvaluationCompleted, Feedback } from 'metadata/notifications'
 import { Socket } from 'modules'
@@ -130,7 +131,7 @@ class ProgressService {
           const requests = ref.recordings.map(recording =>
             this.aws.upload({
               Body: recording.buffer,
-              Key: `speakings/${recording.originalname}`,
+              Key: `speakings/${generateDateFileName(recording.originalname)}`,
               Bucket: state.bucket
             })
           )

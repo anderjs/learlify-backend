@@ -72,12 +72,13 @@ export class UsersService {
       : this.configService.provider.PAGINATION_LIMIT
 
     if (query) {
+      const escapedQuery = query.replace(/[%_\\]/g, '\\$&')
       return User.query()
         .page(page - 1, limit)
         .select(this.clientAttributes)
         .where({ roleId: options.roleId })
         .andWhere(function () {
-          this.where('email', 'like', `%${query}%`)
+          this.where('email', 'like', `%${escapedQuery}%`)
         })
         .withGraphFetched(getAll)
     }
@@ -150,24 +151,47 @@ export class UsersService {
 
     let total = 0
 
-    for (const user of inactiveUsers) {
-      try {
-        await transaction(
-          User,
-          DeletedUser,
-          CloudStorage,
-          DeletedCloudStorage,
-          async (BoundUser, BoundDeletedUser, BoundCloudStorage, BoundDeletedCloudStorage) => {
-            const deletedUser = await BoundDeletedUser.query().findOne({
-              email: user.email
-            })
+    const CHUNK_SIZE = 50
+    for (let i = 0; i < inactiveUsers.length; i += CHUNK_SIZE) {
+      const chunk = inactiveUsers.slice(i, i + CHUNK_SIZE)
 
-            if (deletedUser) {
-              await BoundDeletedUser.query().patchAndFetchById(deletedUser.id, {
-                userId: Math.min(user.id, (deletedUser as unknown as Record<string, number>).userId),
+      for (const user of chunk) {
+        try {
+          await transaction(
+            User,
+            DeletedUser,
+            CloudStorage,
+            DeletedCloudStorage,
+            async (BoundUser, BoundDeletedUser, BoundCloudStorage, BoundDeletedCloudStorage) => {
+              const deletedUser = await BoundDeletedUser.query().findOne({
+                email: user.email
+              })
+
+              if (deletedUser) {
+                await BoundDeletedUser.query().patchAndFetchById(deletedUser.id, {
+                  userId: Math.min(user.id, (deletedUser as unknown as Record<string, number>).userId),
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  updatedAt: knex.fn.now()
+                } as unknown as Record<string, unknown>)
+
+                const cloudstorage = await BoundCloudStorage.query().where({
+                  userId: user.id
+                })
+
+                for (const speaking of cloudstorage) {
+                  await BoundDeletedCloudStorage.query().insert(speaking as unknown as Record<string, unknown>)
+                }
+
+                await BoundUser.query().deleteById(user.id)
+                return
+              }
+
+              await BoundDeletedUser.query().insert({
+                userId: user.id,
+                email: user.email,
                 firstName: user.firstName,
-                lastName: user.lastName,
-                updatedAt: knex.fn.now()
+                lastName: user.lastName
               } as unknown as Record<string, unknown>)
 
               const cloudstorage = await BoundCloudStorage.query().where({
@@ -179,32 +203,14 @@ export class UsersService {
               }
 
               await BoundUser.query().deleteById(user.id)
-              return
             }
-
-            await BoundDeletedUser.query().insert({
-              userId: user.id,
-              email: user.email,
-              firstName: user.firstName,
-              lastName: user.lastName
-            } as unknown as Record<string, unknown>)
-
-            const cloudstorage = await BoundCloudStorage.query().where({
-              userId: user.id
-            })
-
-            for (const speaking of cloudstorage) {
-              await BoundDeletedCloudStorage.query().insert(speaking as unknown as Record<string, unknown>)
-            }
-
-            await BoundUser.query().deleteById(user.id)
-          }
-        )
-        total++
-      } catch (error) {
-        this.logger.error((error as Error).name)
-        this.logger.error((error as Error).stack)
-        continue
+          )
+          total++
+        } catch (error) {
+          this.logger.error((error as Error).name)
+          this.logger.error((error as Error).stack)
+          continue
+        }
       }
     }
 

@@ -19,9 +19,8 @@ export interface ConfigurationProvider {
   JWT_SECRET: string
   MULTIPART_FORMDATA: { FILESIZE: number }
   PAGINATION_LIMIT: number
-  SENDGRID_APTIS_ACADEMY: string
-  SENDGRID_APTIS_EMAIL: string
-  SENDGRIND_API_KEY: string
+  SES_FROM_EMAIL: string
+  SES_REPLY_TO_EMAIL: string
   STRIPE_API_KEY: string
   STRONG_HASH: number
   TWILIO_API_ACCOUNT_SID: string
