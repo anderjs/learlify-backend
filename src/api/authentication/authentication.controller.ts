@@ -12,7 +12,7 @@ import {
   BadRequestException,
   ForbiddenException
 } from 'exceptions'
-import { sendgridConfig } from 'api/mails'
+import { mailConfig } from 'api/mails'
 import { Logger } from 'api/logger'
 import { Bind } from 'decorators'
 import moment from 'moment'
@@ -83,7 +83,7 @@ export class AuthenticationController {
     )
 
     await this.mailService.sendMail({
-      from: this.configService.provider.SENDGRID_APTIS_EMAIL,
+      from: this.configService.provider.SES_FROM_EMAIL,
       to: user.email,
       subject: res.__('mails.services.signUp.subject'),
       text: res.__('mails.services.signUp.text'),
@@ -91,7 +91,7 @@ export class AuthenticationController {
         <div>
           <p>${res.__('mails.services.signUp.html.verification')}</p>
           <a href="${
-            sendgridConfig.domain
+            mailConfig.domain
           }/account/verification?code=${confirmationCode}">
             ${res.__('mails.services.signUp.html.verificate')}
           </a>
@@ -100,9 +100,9 @@ export class AuthenticationController {
           ${res.__('mails.services.signUp.html.thanks')}
           ${res.__('mails.services.signUp.html.practice')}
           ${res.__('mails.services.signUp.html.team')}
-            <a href="${sendgridConfig.domain}">
+            <a href="${mailConfig.domain}">
               ${res.__('mails.services.signUp.html.team')} ${
-        sendgridConfig.domain
+        mailConfig.domain
       }</a>
           </div>
     `
@@ -145,7 +145,7 @@ export class AuthenticationController {
         )
 
         return res.status(200).json({
-          message: 'Login Succesfully',
+          message: 'Login Successfully',
           response: {
             token
           },
@@ -241,7 +241,7 @@ export class AuthenticationController {
 
     await this.mailService.sendMail({
       to: create.email,
-      from: this.configService.provider.SENDGRID_APTIS_EMAIL,
+      from: this.configService.provider.SES_FROM_EMAIL,
       subject: res.__('mails.services.googleSignUp.subject'),
       text: res.__('mails.services.googleSignUp.text', {
         user: create.firstName,
@@ -357,7 +357,7 @@ export class AuthenticationController {
 
     await this.mailService.sendMail({
       to: createdUser.email,
-      from: this.configService.provider.SENDGRID_APTIS_EMAIL,
+      from: this.configService.provider.SES_FROM_EMAIL,
       subject: res.__('mails.services.googleSignUp.subject'),
       text: res.__('mails.services.googleSignUp.text', {
         user: createdUser.firstName,
@@ -428,7 +428,8 @@ export class AuthenticationController {
       })
     }
 
-    throw new NotFoundException(res.__('errors.The account cannot be verified'))
+    // Return generic 400 rather than 404 to prevent user enumeration
+    throw new BadRequestException(res.__('errors.Invalid Token Assignament or expired'))
   }
 
   @Bind
@@ -454,7 +455,7 @@ export class AuthenticationController {
       )
 
       await this.mailService.sendMail({
-        from: this.configService.provider.SENDGRID_APTIS_EMAIL,
+        from: this.configService.provider.SES_FROM_EMAIL,
         to: user.email,
         subject: res.__('mails.services.resetPassword.subject', {
           user: user.firstName
@@ -471,7 +472,7 @@ export class AuthenticationController {
             ${res.__('mails.services.resetPassword.html.practice')}
             <strong>${res.__('mails.services.resetPassword.html.team')}</strong>
           </p>
-          <a href="${sendgridConfig.domain}/accounts/reset?code=${token}">
+          <a href="${mailConfig.domain}/accounts/reset?code=${token}">
             Restaura tu cuenta haciendo click aquí
           </a>
           <br>
@@ -492,11 +493,18 @@ export class AuthenticationController {
       })
     }
 
-    this.logger.warn('Invalid email or user')
+    // Return 200 regardless to prevent email enumeration
+    this.logger.warn('Invalid email or user — returning 200 to prevent enumeration')
 
-    return res.status(404).json({
-      message: 'Not Found',
-      statusCode: 404
+    return res.status(200).json({
+      response: {
+        details: {
+          to: email,
+          date: this.configService.getLastLogin()
+        },
+        sended: true
+      },
+      statusCode: 200
     })
   }
 
@@ -579,7 +587,7 @@ export class AuthenticationController {
     )
 
     return res.status(200).json({
-      message: 'Login Succesfully',
+      message: 'Login Successfully',
       response: {
         token
       },

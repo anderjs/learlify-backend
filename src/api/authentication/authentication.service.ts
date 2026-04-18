@@ -32,18 +32,15 @@ class AuthenticationService {
   decrypt(payload: string): DecryptResult {
     const { provider } = this.configService
 
-    return jwt.verify(
-      payload,
-      provider.JWT_SECRET,
-      { algorithms: ['HS256'] },
-      (err: Error | null, decode: jwt.JwtPayload | string | undefined) => {
-        if (err) {
-          this.logger.error(err)
-          return { error: true as const, details: err }
-        }
-        return decode
-      }
-    ) as unknown as DecryptResult
+    try {
+      const decoded = jwt.verify(payload, provider.JWT_SECRET, {
+        algorithms: ['HS256']
+      })
+      return decoded as unknown as DecryptResult
+    } catch (err) {
+      this.logger.error(err)
+      return { error: true as const, details: err } as unknown as DecryptResult
+    }
   }
 
   encrypt(

@@ -36,13 +36,13 @@ export class AuthenticationRouter {
 
     this.auth.post(
       '/social/google',
-      [...pipe.googleLogin, Middleware.usePipe, Middleware.LanguageGuard],
+      [authLimiter, ...pipe.googleLogin, Middleware.usePipe, Middleware.LanguageGuard],
       Middleware.secure(this.controller.googleLogin)
     )
 
     this.auth.post(
       '/social/facebook',
-      [...pipe.facebookLogin, Middleware.usePipe, Middleware.LanguageGuard],
+      [authLimiter, ...pipe.facebookLogin, Middleware.usePipe, Middleware.LanguageGuard],
       Middleware.secure(this.controller.facebookLogin)
     )
 
@@ -75,7 +75,7 @@ export class AuthenticationRouter {
       Middleware.secure(this.controller.resetPassword)
     )
 
-    this.auth.get('/demo', Middleware.secure(this.controller.demoUser))
+    this.auth.get('/demo', authLimiter, Middleware.secure(this.controller.demoUser))
 
     this.auth.post(
       '/logout',

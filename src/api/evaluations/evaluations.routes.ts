@@ -4,6 +4,7 @@ import { Router } from 'decorators'
 import { Logger } from 'api/logger'
 import { Middleware } from 'middlewares'
 import { Roles } from 'metadata/roles'
+import { OWNER } from 'metadata/owners'
 import { EvaluationsController } from './evaluations.controller'
 import { pipe } from './evaluations.pipe'
 import { isRunningOnProductionOrDevelopment } from 'functions'
@@ -58,17 +59,18 @@ class EvaluationsRouter {
       '/:id',
       [
         Middleware.authenticate,
+        Middleware.isResourceOwner({ context: OWNER.EVALUATION }),
         pipe.getOne,
         Middleware.usePipe
       ] as RequestHandler[],
       Middleware.secure(this.controller.getOne)
     )
 
-
     this.evaluations.patch(
       '/:id',
       [
         Middleware.authenticate,
+        Middleware.RolesGuard([Roles.Admin, Roles.Teacher]),
         pipe.getOne,
         Middleware.usePipe,
       ] as RequestHandler[],

@@ -26,10 +26,8 @@ const config = {
   JWT_EXPIRATION: '30d',
   JWT_SECRET: process.env.JWT_SECRET,
   PAGINATION_LIMIT: 10,
-  SENDGRID_APTIS_ACADEMY: 'academyb1b2@gmail.com',
-  SENDGRID_APTIS_EMAIL: 'aptisgo@noreply',
-  SENDGRID_API_KEY:
-    process.env.SENDGRID_API_KEY || process.env.SENDGRIND_API_KEY,
+  SES_FROM_EMAIL: process.env.SES_FROM_EMAIL || 'support@learlify.com',
+  SES_REPLY_TO_EMAIL: process.env.SES_REPLY_TO_EMAIL || 'support@learlify.com',
   SSL_CERT: process.env.SSL_CERT,
   SSL_SECRET: process.env.SSL_SECRET,
   STRIPE_API_KEY: process.env.STRIPE_API_KEY,
@@ -70,20 +68,6 @@ const REQUIRED_ENV: Array<[string, string]> = [
   ['AWS_REGION', 'AWS S3 region must be explicit in SDK v3']
 ]
 
-const hasSendgrid =
-  process.env.SENDGRID_API_KEY || process.env.SENDGRIND_API_KEY
-
-if (!hasSendgrid) {
-  throw new Error(
-    'SENDGRID_API_KEY environment variable is required (SENDGRIND_API_KEY is deprecated)'
-  )
-}
-
-if (process.env.SENDGRIND_API_KEY && !process.env.SENDGRID_API_KEY) {
-  globalThis.console.warn(
-    '[DEPRECATION] SENDGRIND_API_KEY is deprecated. Please rename it to SENDGRID_API_KEY in your .env file.'
-  )
-}
 
 for (const [key, hint] of REQUIRED_ENV) {
   if (!process.env[key]) {

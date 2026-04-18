@@ -32,7 +32,7 @@ jest.mock('api/config/config.service', () => ({
   ConfigService: jest.fn().mockImplementation(() => ({
     provider: {
       STRIPE_API_KEY: 'sk_test_mock',
-      SENDGRID_APTIS_EMAIL: 'noreply@test.com'
+      SES_FROM_EMAIL: 'noreply@test.com'
     },
     getPackageExpirationDate: jest.fn().mockReturnValue('2027-01-01')
   }))
@@ -92,7 +92,7 @@ jest.mock('api/stripe/stripe.service', () => ({
 }))
 
 jest.mock('api/mails', () => ({
-  sendgridConfig: { domain: 'https://test.com', email: 'noreply@test.com' }
+  mailConfig: { domain: 'https://test.com', email: 'noreply@test.com' }
 }))
 
 import { PackagesController } from 'api/packages/packages.controller'

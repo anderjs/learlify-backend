@@ -84,7 +84,7 @@ class ProgressController {
     })
 
     if (exists) {
-      this.logger.warning('Progress Conflict Already Exist')
+      this.logger.warn('Progress Conflict Already Exist')
 
       throw new ConflictException()
     }

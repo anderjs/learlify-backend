@@ -87,9 +87,9 @@ export class MeetingsController {
 
   @Bind
   async identity(req: Request, res: Response): Promise<Response> {
-    const user = await this.usersService.getOne({
-      email: req.query.email
-    } as unknown as Parameters<typeof this.usersService.getOne>[0])
+    // Restrict identity token to the authenticated caller only — prevents
+    // a user from requesting another user's meeting token.
+    const caller = req.user!
 
     const classRoom = await this.classesService.getOne({
       name: req.query.room
@@ -98,7 +98,8 @@ export class MeetingsController {
     if ((classRoom as unknown as Record<string, Record<string, unknown>>).schedule?.streaming) {
       return res.status(200).json({
         response: this.authService.encrypt({
-          ...user as unknown as Record<string, unknown>
+          id: caller.id,
+          email: caller.email
         }),
         statusCode: 200
       })

@@ -76,6 +76,10 @@ class NotificationsRouter {
 
     this.notifications.delete(
       '/',
+      [
+        Middleware.authenticate,
+        Middleware.RolesGuard([Roles.Admin])
+      ] as RequestHandler[],
       Middleware.secure(this.controller.deleteExpired)
     )
 

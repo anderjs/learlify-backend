@@ -4,7 +4,7 @@ import { AuthenticationService } from 'api/authentication/authentication.service
 import { UsersService } from './users.service'
 import { ConfigService } from 'api/config/config.service'
 import { RolesService } from 'api/roles/roles.services'
-import { NotFoundException } from 'exceptions'
+import { NotFoundException, BadRequestException } from 'exceptions'
 import { createPaginationStack } from 'functions'
 import type { Request, Response, NextFunction } from 'express'
 
@@ -74,7 +74,7 @@ class UsersController {
 
   @Bind
   async updateOne(req: Request, res: Response): Promise<Response> {
-    const { email, ...data } = req.body
+    const { email, currentPassword, ...data } = req.body
 
     this.logger.info('email', { email })
 
@@ -85,10 +85,29 @@ class UsersController {
     })
 
     if (available) {
-      (data as Record<string, unknown>).password &&
+      if ((data as Record<string, unknown>).password) {
+        if (!currentPassword) {
+          throw new BadRequestException(res.__('errors.Current password is required to set a new password'))
+        }
+
+        const userWithPassword = await this.usersService.getOne({
+          id: user.id,
+          allowPrivateData: true
+        } as unknown as Parameters<typeof this.usersService.getOne>[0])
+
+        const valid = await this.authService.compareHash(
+          currentPassword as string,
+          (userWithPassword as unknown as Record<string, string>).password
+        )
+
+        if (!valid) {
+          throw new BadRequestException(res.__('errors.Invalid password or username'))
+        }
+
         Object.assign(data, {
           password: await this.authService.hash((data as Record<string, unknown>).password as string)
         })
+      }
 
       const update = await this.usersService.updateOne({
         ...data,

@@ -17,7 +17,7 @@ import { Bind } from 'decorators'
 import { Roles } from 'metadata/roles'
 import { Logger } from 'api/logger'
 import moment from 'moment'
-import { sendgridConfig } from 'api/mails'
+import { mailConfig } from 'api/mails'
 import type { CreateClassBody, IndicationsBody, ClassTransactionError } from './classes.types'
 
 class ClassesController {
@@ -104,7 +104,7 @@ class ClassesController {
 
         await this.mailsSerivce.sendMail({
           to: (req.user as { email: string }).email,
-          from: sendgridConfig.email,
+          from: mailConfig.email,
           text: 'Confirmación de clase',
           subject: 'Hemos confirmado tu clase',
           html: `
@@ -131,7 +131,7 @@ class ClassesController {
 
         await this.mailsSerivce.sendMail({
           to: classSuccess.schedule.teacher.email,
-          from: sendgridConfig.email,
+          from: mailConfig.email,
           subject: 'Clase confirmada',
           text: 'Clase confirmada',
           html: `
@@ -163,8 +163,8 @@ class ClassesController {
         })
 
         await this.mailsSerivce.sendMail({
-          to: (this.configService.provider as unknown as { SENDGRID_APTIS_ACADEMY: string }).SENDGRID_APTIS_ACADEMY,
-          from: sendgridConfig.email,
+          to: (this.configService.provider as unknown as { SES_REPLY_TO_EMAIL: string }).SES_REPLY_TO_EMAIL,
+          from: mailConfig.email,
           subject: 'Clase confirmada',
           text: 'Clase confirmada',
           html: `

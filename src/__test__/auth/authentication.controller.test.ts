@@ -34,7 +34,7 @@ jest.mock('api/config/config.service', () => ({
       JWT_SECRET: 'ctrl-test-secret-32-chars-min-ok',
       JWT_EXPIRATION: '30d',
       STRONG_HASH: 10,
-      SENDGRID_APTIS_EMAIL: 'noreply@test.com'
+      SES_FROM_EMAIL: 'noreply@test.com'
     },
     getLastLogin: jest.fn().mockReturnValue('2026-01-01')
   }))
@@ -64,7 +64,7 @@ jest.mock('api/mails/mails.service', () => ({
 }))
 
 jest.mock('api/mails', () => ({
-  sendgridConfig: {
+  mailConfig: {
     domain: 'https://test.aptis.com',
     email: 'noreply@test.com'
   }
@@ -303,7 +303,7 @@ describe('AuthenticationController', () => {
   })
 
   describe('forgot()', () => {
-    it('returns 404 when email is not registered', async () => {
+    it('returns 200 when email is not registered (prevents enumeration)', async () => {
       users.getOne.mockResolvedValue(null)
 
       const req = makeReq({ query: { email: 'nobody@t.com' } })
@@ -311,7 +311,7 @@ describe('AuthenticationController', () => {
 
       await controller.forgot(req, res)
 
-      expect(res.status).toHaveBeenCalledWith(404)
+      expect(res.status).toHaveBeenCalledWith(200)
     })
 
     it('sends reset email and returns 200 when user is found', async () => {
