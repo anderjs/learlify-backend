@@ -346,7 +346,7 @@ export class PackagesService {
       count.speakings = (speakings[0] as unknown as Record<string, unknown>).speakings
     }
 
-    if (speakings && writings[0]) {
+    if (writings && writings[0]) {
       count.writings = (writings[0] as unknown as Record<string, unknown>).writings
     }
 

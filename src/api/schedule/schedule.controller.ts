@@ -72,7 +72,7 @@ class ScheduleController {
     })) as CreatedSchedule
 
     await this.mailService.sendMail({
-      from: provider.SENDGRID_APTIS_EMAIL,
+      from: provider.SES_FROM_EMAIL,
       to: schedule.teacher.email,
       text: 'Te hemos asignado un horario disponible para AptisGo',
       subject: 'Te hemos asignado un horario disponible para AptisGo',

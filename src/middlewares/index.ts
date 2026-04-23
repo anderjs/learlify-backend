@@ -11,6 +11,7 @@ import { Logger } from 'api/logger'
 import { generateDateFileName, sanitizeFile } from 'functions'
 
 import { MODE } from 'common/process'
+import Evaluation from 'api/evaluations/evaluations.model'
 import { getTeacherEvaluation } from 'api/evaluations/evaluations.services'
 import config from '../config'
 import demo from 'metadata/demo'
@@ -361,6 +362,31 @@ export class Middleware {
 
           logger.warn('Invalid owner', (req as MiddlewareRequest).user?.id)
 
+          throw new UnauthorizedException()
+        }
+
+        throw new NotFoundException()
+      }
+
+      if (context === OWNER.EVALUATION) {
+        const evaluation = (await Evaluation.query()
+          .findById(id)
+          .select(['id', 'userId', 'teacherId'])) as unknown as {
+          userId?: number
+          teacherId?: number
+        }
+
+        if (evaluation) {
+          const user = (req as MiddlewareRequest).user as unknown as RequestUserLike | undefined
+          const isOwner = evaluation.userId === user?.id
+          const isTeacher = evaluation.teacherId === user?.id
+          const isAdmin = user?.role?.name === 'ADMIN'
+
+          if (isOwner || isTeacher || isAdmin) {
+            return next()
+          }
+
+          logger.warn('Invalid owner', user?.id)
           throw new UnauthorizedException()
         }
 

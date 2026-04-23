@@ -10,7 +10,7 @@ import { UsersService } from 'api/users/users.service'
 import { ProgressService } from 'api/progress/progress.service'
 import { NotFoundException, PaymentException, TransactionError } from 'exceptions'
 import { Logger } from 'api/logger'
-import { sendgridConfig } from 'api/mails'
+import { mailConfig } from 'api/mails'
 import { Bind } from 'decorators'
 import type { TransactionablePackageResult } from './packages.types'
 
@@ -66,7 +66,7 @@ class PackagesController {
         if (pack) {
           await this.mailService.sendMail({
             to: user.email,
-            from: (this.configService.provider as unknown as { SENDGRID_APTIS_EMAIL: string }).SENDGRID_APTIS_EMAIL,
+            from: (this.configService.provider as unknown as { SES_FROM_EMAIL: string }).SES_FROM_EMAIL,
             subject: res.__('mails.services.assignPackage.subject'),
             text: res.__('mails.services.assignPackage.text', { user: user.firstName }),
             html: res.__('mails.services.assignPackage.html.enjoy', { plan: plan.name })
@@ -129,7 +129,7 @@ class PackagesController {
 
     if (data.plan) {
       await this.mailService.sendMail({
-        from: sendgridConfig.email,
+        from: mailConfig.email,
         to: user.email,
         subject: res.__('mails.services.createPackage.subject'),
         text: res.__('mails.services.createPackage.text', { user: user.firstName }),
@@ -137,7 +137,7 @@ class PackagesController {
           <div>
             ${res.__('mails.services.createPackage.html.confirm')} ${data.plan.name}
             ${res.__('mails.services.createPackage.html.practice')}
-            ${res.__('mails.services.createPackage.html.access')} <a href="${sendgridConfig.domain}">${sendgridConfig.domain}</a>
+            ${res.__('mails.services.createPackage.html.access')} <a href="${mailConfig.domain}">${mailConfig.domain}</a>
             ${res.__('mails.services.createPackage.html.must')}
             <strong>B1B2Top AptisGo</strong>
           </div>`
@@ -184,11 +184,8 @@ class PackagesController {
 
     const user = req.user!
 
-    if (
-      type.toLowerCase() === 'writings' &&
-      type.toLowerCase() === 'speakings'
-    ) {
-      throw new NotFoundException('Bad request type be speakings or writings only')
+    if (!['writings', 'speakings'].includes(type.toLowerCase())) {
+      throw new NotFoundException('Bad request: type must be speakings or writings only')
     }
 
     const category = await this.categoriesService.getOne({ name: value }) as unknown as {

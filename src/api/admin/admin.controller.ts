@@ -69,7 +69,7 @@ class AdminController {
 
       await this.mailService.sendMail({
         to: user.email,
-        from: this.configService.provider.SENDGRID_APTIS_EMAIL,
+        from: this.configService.provider.SES_FROM_EMAIL,
         subject: res.__('mails.services.createUser.subject'),
         text: res.__('mails.services.createUser.text', {
           user: user.firstName
@@ -107,21 +107,21 @@ class AdminController {
       email
     })
 
-    delete user!.stripeCustomerId
-    delete user!.role
-
     if (user) {
+      const { stripeCustomerId: _s, role: _r, ...safeUser } = user as unknown as Record<string, unknown>
+
       const count = await this.packagesService.getWritingsAndSpeakings({
         userId: user.id
       })
 
       const membership = await this.packagesService.getAll({
-        isActive: true
+        isActive: true,
+        userId: user.id
       })
 
       return res.json({
         response: {
-          ...user,
+          ...safeUser,
           ...count,
           membership: membership.length > 0
         },

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import type { MailData } from '@sendgrid/helpers/classes/mail'
+import type { MailOptions } from 'api/mails/mails.service'
 import { MailService } from 'api/mails/mails.service'
 import { ConfigService } from 'api/config/config.service'
 import { UsersService } from 'api/users/users.service'
@@ -21,7 +21,7 @@ class ReportController {
     const { provider } = this.configService
 
     await this.mailService.sendMail({
-      from: provider.SENDGRID_APTIS_EMAIL,
+      from: provider.SES_FROM_EMAIL,
       to: from,
       subject: context,
       message: 'Has recibido un report en AptisGo',
@@ -38,7 +38,7 @@ class ReportController {
           </p>
         </div>
       `
-    } as MailData)
+    } as MailOptions)
 
     return res.status(200).json({
       message: 'Report has been sended',
@@ -53,13 +53,13 @@ class ReportController {
 
     const { provider } = this.configService
 
-    const teacher = this.usersService.getOne({
+    const teacher = await this.usersService.getOne({
       id: req.query.teacher as unknown as number
     }) as unknown as Record<string, string> | undefined
 
     await this.mailService.sendMail({
-      from: provider.SENDGRID_APTIS_EMAIL,
-      to: provider.SENDGRID_APTIS_ACADEMY,
+      from: provider.SES_FROM_EMAIL,
+      to: provider.SES_REPLY_TO_EMAIL,
       text: `El estudiante ${user.firstName} ${user.lastName} Ha calificado una vídeo llamada`,
       subject: `El estudiante ${user.firstName} Ha calificado una vídeo llamada`,
       html: `
@@ -72,7 +72,7 @@ class ReportController {
 
     if (teacher?.email) {
       await this.mailService.sendMail({
-        from: provider.SENDGRID_APTIS_EMAIL,
+        from: provider.SES_FROM_EMAIL,
         to: teacher.email,
         text: `${user.firstName} ${user.lastName} Ha calificado una vídeo llamada`,
         subject: `El estudiante ${user.firstName} Ha calificado una vídeo llamada`,

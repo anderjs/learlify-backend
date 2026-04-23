@@ -186,10 +186,10 @@ describe('JWT Blocklist', () => {
       expect(result).toBe(false)
     })
 
-    it('returns false when Redis is not configured', async () => {
+    it('returns true (fail-closed) when Redis is not configured', async () => {
       getRedisClient.mockReturnValue(null)
       const result = await isTokenBlocked(makeToken())
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 })

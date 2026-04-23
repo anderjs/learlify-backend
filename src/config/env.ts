@@ -21,8 +21,8 @@ const envSchema = z.object({
   STRONG_HASH: z.coerce.number().default(10),
   PAGINATION_LIMIT: z.coerce.number().default(10),
 
-  SENDGRID_API_KEY: z.string().optional(),
-  SENDGRIND_API_KEY: z.string().optional(),
+  SES_FROM_EMAIL: z.string().email().optional(),
+  SES_REPLY_TO_EMAIL: z.string().email().optional(),
   STRIPE_API_KEY: z.string().optional(),
 
   AWS_ACCESS_KEY: z.string().optional(),
